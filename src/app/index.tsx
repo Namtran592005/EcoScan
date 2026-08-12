@@ -25,12 +25,24 @@ import {
   resetDetector,
 } from '@/ai/modelManager';
 import type { WasteClassifier, WasteDetector } from '@/ai/types';
+import { perf } from '@/utils/perf';
 
 export default function ScanScreen() {
   useKeepAwake();
 
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // Record preview (JS rAF) pacing for the debug overlay.
+  useEffect(() => {
+    let rafId = 0;
+    const tick = () => {
+      perf.recordPreviewFrame();
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   const [mode, setMode] = useState<ScanMode>('single');
   const [isFocused, setIsFocused] = useState(false);
