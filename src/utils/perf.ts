@@ -44,7 +44,9 @@ class PerfTracker {
     this.totalCycles = 0;
   }
 
-  getSnapshot(): PerfSnapshot {
+  // Arrow function property so passing it by reference to
+  // useSyncExternalStore does not lose the `this` binding.
+  getSnapshot = (): PerfSnapshot => {
     const now = Date.now();
     this.prune(this.previewFrames, now);
     this.pruneCycles(now);
