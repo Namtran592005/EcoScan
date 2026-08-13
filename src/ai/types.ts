@@ -48,7 +48,6 @@ export interface ModelRuntimeInfo {
 }
 
 export interface WasteClassifier {
-  readonly kind: 'classifier';
   /** Loads the ONNX session (must be awaited before use). */
   load(): Promise<void>;
   /** Runs classification on one RGBA image. Returns top-1 class. */
@@ -58,7 +57,6 @@ export interface WasteClassifier {
 }
 
 export interface WasteDetector {
-  readonly kind: 'detector';
   load(): Promise<void>;
   /** Runs detection on one RGBA image. Returns zero or more boxes. */
   detect(image: RgbaImage): Promise<DetectionBox[]>;
@@ -72,4 +70,5 @@ export type ModelAvailability =
   | { state: 'loading' }
   | { state: 'ready' }
   | { state: 'error'; message: string }
-  | { state: 'unavailable'; message: string };
+  | { state: 'unavailable'; message: string }
+  | { state: 'missing' };

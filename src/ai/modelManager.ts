@@ -1,23 +1,35 @@
-import { OnnxWasteClassifier } from './classifierAdapter';
-import { OnnxWasteDetector } from './detectorAdapter';
+import { OnnxImportModel } from './genericAdapter';
 import type { ModelAvailability, WasteClassifier, WasteDetector } from './types';
-import { resolveModelPath, MODEL_ASSETS } from '@/services/modelAssets';
+import { getActiveModel, modelPathFor } from '@/services/modelStore';
 
 /**
  * Singleton model manager.
  *
- * Loads classifier/detector ONNX sessions lazily and resolves their asset
- * paths once. The screen reads availability through getters; load failures are
- * surfaced as discreet states instead of crashing the app.
+ * Resolves the active classifier/detector from the model store (user-imported
+ * ONNX files) and caches the loaded adapters. When the store changes (import /
+ * remove / reassign), the cached promises are invalidated so the next access
+ * picks up the new configuration.
  */
 
 let classifierPromise: Promise<WasteClassifier> | null = null;
 let detectorPromise: Promise<WasteDetector> | null = null;
 
+function invalidate(): void {
+  classifierPromise = null;
+  detectorPromise = null;
+}
+
+export function invalidateModels(): void {
+  invalidate();
+}
+
 function createClassifier(): Promise<WasteClassifier> {
   classifierPromise = (async () => {
-    const path = await resolveModelPath(MODEL_ASSETS.classifier as never);
-    const adapter = new OnnxWasteClassifier(path);
+    const entry = await getActiveModel('classifier');
+    if (!entry) {
+      throw new Error('CHUA_CO_MODEL');
+    }
+    const adapter = new OnnxImportModel(modelPathFor(entry), 'classifier');
     await adapter.load();
     return adapter;
   })();
@@ -26,64 +38,61 @@ function createClassifier(): Promise<WasteClassifier> {
 
 function createDetector(): Promise<WasteDetector> {
   detectorPromise = (async () => {
-    const path = await resolveModelPath(MODEL_ASSETS.detector as never);
-    const adapter = new OnnxWasteDetector(path);
+    const entry = await getActiveModel('detector');
+    if (!entry) {
+      throw new Error('CHUA_CO_MODEL');
+    }
+    const adapter = new OnnxImportModel(modelPathFor(entry), 'detector');
     await adapter.load();
     return adapter;
   })();
   return detectorPromise;
 }
 
-/** Get (and lazily load) the classifier adapter. Rejects on failure. */
+/** Get (and lazily load) the classifier adapter. Rejects when none is set. */
 export function getClassifier(): Promise<WasteClassifier> {
   return classifierPromise ?? createClassifier();
 }
 
-/** Get (and lazily load) the detector adapter. Rejects on failure. */
+/** Get (and lazily load) the detector adapter. Rejects when none is set. */
 export function getDetector(): Promise<WasteDetector> {
   return detectorPromise ?? createDetector();
 }
 
-/** Pre-load both models in parallel (call once at app start). */
-export function preloadModels(): Promise<void> {
-  return Promise.allSettled([getClassifier(), getDetector()]).then(
-    () => undefined,
-  );
-}
-
-/** Best-effort: resolve a classifier availability state without throwing. */
+/**
+ * Best-effort: resolve a classifier availability state without throwing.
+ * Returns `{ state: 'missing' }` when no classifier model is configured.
+ */
 export async function classifierAvailability(): Promise<ModelAvailability> {
-  try {
-    const classifier = await getClassifier();
-    if (classifier.runtime.status === 'ready') return { state: 'ready' };
-    if (classifier.runtime.status === 'unavailable') {
-      return {
-        state: 'unavailable',
-        message: classifier.runtime.error ?? 'Native inference unavailable',
-      };
-    }
-    return { state: 'error', message: classifier.runtime.error ?? 'Unknown' };
-  } catch (error) {
-    return {
-      state: 'error',
-      message: error instanceof Error ? error.message : 'Lỗi không xác định',
-    };
-  }
+  const entry = await getActiveModel('classifier');
+  if (!entry) return { state: 'missing' };
+  return resolveAvailability(getClassifier);
 }
 
 /** Best-effort: resolve a detector availability state without throwing. */
 export async function detectorAvailability(): Promise<ModelAvailability> {
+  const entry = await getActiveModel('detector');
+  if (!entry) return { state: 'missing' };
+  return resolveAvailability(getDetector);
+}
+
+async function resolveAvailability(
+  get: () => Promise<WasteClassifier | WasteDetector>,
+): Promise<ModelAvailability> {
   try {
-    const detector = await getDetector();
-    if (detector.runtime.status === 'ready') return { state: 'ready' };
-    if (detector.runtime.status === 'unavailable') {
+    const model = await get();
+    if (model.runtime.status === 'ready') return { state: 'ready' };
+    if (model.runtime.status === 'unavailable') {
       return {
         state: 'unavailable',
-        message: detector.runtime.error ?? 'Native inference unavailable',
+        message: model.runtime.error ?? 'Native inference unavailable',
       };
     }
-    return { state: 'error', message: detector.runtime.error ?? 'Unknown' };
+    return { state: 'error', message: model.runtime.error ?? 'Unknown' };
   } catch (error) {
+    if (error instanceof Error && error.message === 'CHUA_CO_MODEL') {
+      return { state: 'missing' };
+    }
     return {
       state: 'error',
       message: error instanceof Error ? error.message : 'Lỗi không xác định',
@@ -103,8 +112,7 @@ export async function disposeModels(): Promise<void> {
     jobs.push(detectorPromise.then((d) => d.dispose()).catch(() => undefined));
   }
   await Promise.all(jobs);
-  classifierPromise = null;
-  detectorPromise = null;
+  invalidate();
 }
 
 /** Force the classifier to be reloaded on next access (retry path). */

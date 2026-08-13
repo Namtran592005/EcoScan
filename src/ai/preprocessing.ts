@@ -1,4 +1,3 @@
-import { CLASSIFY_INPUT_SIZE, DETECT_INPUT_SIZE } from '@/data/thresholds';
 import type { RgbaImage } from './types';
 
 /** Pool of reusable Float32Array input buffers keyed by dimension. */
@@ -85,6 +84,3 @@ export function rgbaToNormalizedNchw(
   }
   return out;
 }
-
-export const CLASSIFY_MODEL_INPUT = CLASSIFY_INPUT_SIZE;
-export const DETECT_MODEL_INPUT = DETECT_INPUT_SIZE;

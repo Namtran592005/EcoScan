@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -7,13 +9,25 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Colors, Font, Radii, Spacing } from '@/constants/theme';
+import * as DocumentPicker from 'expo-document-picker';
+import { Colors, Font, Radii, Spacing, TouchTarget } from '@/constants/theme';
 import {
   useDebugEnabled,
   setDebugEnabled,
 } from '@/utils/appSettings';
-import { getClassifier, getDetector } from '@/ai/modelManager';
-import type { ModelRuntimeInfo } from '@/ai/types';
+import { invalidateModels } from '@/ai/modelManager';
+import { probeModelFile } from '@/services/modelProbe';
+import {
+  assignRole,
+  deleteModel,
+  getActiveModel,
+  importModelFile,
+  listModels,
+  useModelStoreVersion,
+  unassignRole,
+  type ModelKind,
+  type StoredModel,
+} from '@/services/modelStore';
 import {
   CATEGORIES,
   CATEGORY_ORDER,
@@ -27,27 +41,122 @@ import {
   CLASSIFY_CONFIRM_STREAK,
   CLASSIFY_SMOOTHING_WINDOW,
   DETECT_CONFIDENCE_THRESHOLD,
-  DETECT_INPUT_SIZE,
-  CLASSIFY_INPUT_SIZE,
 } from '@/data/thresholds';
 
 export default function SettingsScreen() {
   const debugEnabled = useDebugEnabled();
-  const [classifierRuntime, setClassifierRuntime] = useState<ModelRuntimeInfo | null>(null);
-  const [detectorRuntime, setDetectorRuntime] = useState<ModelRuntimeInfo | null>(null);
+  useModelStoreVersion();
+
+  const [classifierId, setClassifierId] = useState<string | null>(null);
+  const [detectorId, setDetectorId] = useState<string | null>(null);
+  const [models, setModels] = useState<StoredModel[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getClassifier()
-      .then((c) => !cancelled && setClassifierRuntime(c.runtime))
-      .catch(() => {});
-    getDetector()
-      .then((d) => !cancelled && setDetectorRuntime(d.runtime))
-      .catch(() => {});
+    void (async () => {
+      const [all, classifier, detector] = await Promise.all([
+        listModels(),
+        getActiveModel('classifier'),
+        getActiveModel('detector'),
+      ]);
+      if (cancelled) return;
+      setModels(all);
+      setClassifierId(classifier?.id ?? null);
+      setDetectorId(detector?.id ?? null);
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  /** Reload model list after mutations (called from event handlers only). */
+  const refresh = useCallback(async () => {
+    const [all, classifier, detector] = await Promise.all([
+      listModels(),
+      getActiveModel('classifier'),
+      getActiveModel('detector'),
+    ]);
+    setModels(all);
+    setClassifierId(classifier?.id ?? null);
+    setDetectorId(detector?.id ?? null);
+  }, []);
+
+  const onImport = useCallback(async () => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/octet-stream', 'application/x-onnx', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset.uri) throw new Error('Không lấy được file model.');
+
+      // Probe so we can show the detected role immediately and give a friendly
+      // error for unsupported files. If ONNX Runtime is unavailable (Expo Go),
+      // still import the file so it is recorded — it just won't run inference.
+      const meta = await probeModelFile(asset.uri).catch((error: unknown) => {
+        if (error instanceof Error && /Development Build/.test(error.message)) {
+          return { kind: 'unknown' as const, inputSize: null, numClasses: null };
+        }
+        throw error;
+      });
+      await importModelFile(asset.uri, asset.name ?? 'model.onnx', meta);
+      invalidateModels();
+      await refresh();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Lỗi khi thêm mô hình.');
+    } finally {
+      setImporting(false);
+    }
+  }, [refresh]);
+
+  const onDelete = useCallback(
+    async (model: StoredModel) => {
+      Alert.alert(
+        'Xóa mô hình',
+        `Xóa "${model.fileName}" khỏi thiết bị?`,
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Xóa',
+            style: 'destructive',
+            onPress: async () => {
+              await deleteModel(model.id);
+              invalidateModels();
+              refresh();
+            },
+          },
+        ],
+      );
+    },
+    [refresh],
+  );
+
+  const onAssign = useCallback(
+    async (model: StoredModel, role: ModelKind) => {
+      await assignRole(model.id, role);
+      invalidateModels();
+      refresh();
+    },
+    [refresh],
+  );
+
+  const onUnassign = useCallback(
+    async (role: ModelKind) => {
+      await unassignRole(role);
+      invalidateModels();
+      refresh();
+    },
+    [refresh],
+  );
+
+  const classifierName = models.find((m) => m.id === classifierId)?.fileName;
+  const detectorName = models.find((m) => m.id === detectorId)?.fileName;
 
   return (
     <ScrollView
@@ -73,20 +182,107 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Mô hình (ONNX)">
+        <View style={styles.row}>
+          <IconLabel icon="add-circle-outline" tint={[52,199,89]} label="Thêm mô hình .onnx" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chọn file ONNX để thêm mô hình"
+            onPress={onImport}
+            disabled={importing}
+            style={({ pressed }) => [
+              styles.smallButton,
+              pressed && styles.pressed,
+              importing && styles.smallButtonDisabled,
+            ]}
+          >
+            <Text style={styles.smallButtonLabel}>
+              {importing ? 'Đang thêm…' : 'Nhập'}
+            </Text>
+          </Pressable>
+        </View>
+        <Text style={styles.hintText}>
+          Ứng dụng không kèm sẵn mô hình nào. Hãy thêm file ONNX của bạn
+          (YOLOv8/v11 classification hoặc detection). Loại model được tự nhận
+          dạng từ metadata.
+        </Text>
+        {importError ? (
+          <Text style={styles.errorText} accessibilityRole="alert">
+            {importError}
+          </Text>
+        ) : null}
+
+        {models.length === 0 ? (
+          <Text style={styles.emptyText}>
+            Chưa có mô hình nào. Bấm “Nhập” để chọn file .onnx trên thiết bị.
+          </Text>
+        ) : (
+          models.map((model) => (
+            <View key={model.id} style={styles.modelCard}>
+              <View style={styles.modelHeader}>
+                <Ionicons name="cube-outline" size={20} color={Colors.accent} />
+                <Text style={styles.modelName} numberOfLines={2}>
+                  {model.fileName}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Xóa ${model.fileName}`}
+                  onPress={() => onDelete(model)}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                </Pressable>
+              </View>
+              <View style={styles.modelMetaRow}>
+                <MetaPill
+                  label={
+                    model.kind === 'classifier'
+                      ? 'Phân loại'
+                      : model.kind === 'detector'
+                        ? 'Phát hiện'
+                        : 'Chưa rõ'
+                  }
+                />
+                {model.inputSize ? <MetaPill label={`${model.inputSize}²`} /> : null}
+                {model.numClasses ? (
+                  <MetaPill label={`${model.numClasses} lớp`} />
+                ) : null}
+              </View>
+              <View style={styles.roleRow}>
+                <RoleButton
+                  active={classifierName === model.fileName}
+                  label="Dùng làm phân loại"
+                  onPress={() => onAssign(model, 'classifier')}
+                  onClear={() => onUnassign('classifier')}
+                />
+                <RoleButton
+                  active={detectorName === model.fileName}
+                  label="Dùng làm phát hiện"
+                  onPress={() => onAssign(model, 'detector')}
+                  onClear={() => onUnassign('detector')}
+                />
+              </View>
+            </View>
+          ))
+        )}
+
+        <View style={styles.separator} />
         <InfoRow
           icon="cube-outline"
           label="Phân loại (Một vật)"
-          value={describeRuntime(classifierRuntime)}
+          value={classifierName ?? 'Chưa chọn'}
         />
         <View style={styles.separator} />
         <InfoRow
           icon="layers-outline"
           label="Phát hiện (Nhiều vật)"
-          value={describeRuntime(detectorRuntime)}
+          value={detectorName ?? 'Chưa chọn'}
         />
         <Text style={styles.hintText}>
-          Input: phân loại {CLASSIFY_INPUT_SIZE}², phát hiện {DETECT_INPUT_SIZE}².
-          EP = execution provider ONNX Runtime đang dùng.
+          Một mô hình có thể đảm nhận cả hai vai trò. Chọn vai trò ở từng mô
+          hình ở trên.
         </Text>
       </Section>
 
@@ -234,14 +430,59 @@ function InfoRow({
   );
 }
 
-function describeRuntime(runtime: ModelRuntimeInfo | null): string {
-  if (!runtime) return 'Chưa tải';
-  if (runtime.status === 'ready') {
-    return `sẵn sàng · EP ${runtime.executionProvider ?? '?'} · ${runtime.inputSize ?? '?'}²`;
+function MetaPill({ label }: { label: string }) {
+  return (
+    <View style={styles.metaPill}>
+      <Text style={styles.metaPillText}>{label}</Text>
+    </View>
+  );
+}
+
+function RoleButton({
+  active,
+  label,
+  onPress,
+  onClear,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+  onClear: () => void;
+}) {
+  if (active) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label} (đang dùng). Nhấn để bỏ chọn`}
+        onPress={onClear}
+        style={({ pressed }) => [
+          styles.roleButton,
+          styles.roleButtonActive,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+        <Text style={styles.roleButtonActiveLabel} numberOfLines={1}>
+          {label}
+        </Text>
+      </Pressable>
+    );
   }
-  if (runtime.status === 'loading') return 'Đang tải…';
-  if (runtime.status === 'unavailable') return 'Cần Dev Build';
-  return 'Lỗi';
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.roleButton,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text style={styles.roleButtonLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -330,6 +571,112 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     maxWidth: '50%',
     textAlign: 'right',
+  },
+  smallButton: {
+    minHeight: TouchTarget - 8,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallButtonDisabled: {
+    opacity: 0.6,
+  },
+  smallButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: Font.small,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: Colors.danger,
+    fontSize: Font.small,
+    backgroundColor: 'rgba(255,69,58,0.12)',
+    borderRadius: Radii.sm,
+    padding: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  emptyText: {
+    color: Colors.textTernary,
+    fontSize: Font.small,
+    lineHeight: 19,
+    paddingVertical: Spacing.sm,
+  },
+  modelCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: Radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  modelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  modelName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: Font.body,
+    fontWeight: '600',
+  },
+  iconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,69,58,0.12)',
+  },
+  modelMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  metaPill: {
+    backgroundColor: 'rgba(10,132,255,0.14)',
+    borderRadius: Radii.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  metaPillText: {
+    color: Colors.accent,
+    fontSize: Font.caption,
+    fontWeight: '600',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  roleButton: {
+    minHeight: 34,
+    paddingHorizontal: Spacing.sm + 2,
+    borderRadius: Radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  roleButtonActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  roleButtonLabel: {
+    color: Colors.text,
+    fontSize: Font.small,
+  },
+  roleButtonActiveLabel: {
+    color: '#FFFFFF',
+    fontSize: Font.small,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.85,
   },
   categoryRow: {
     flexDirection: 'row',

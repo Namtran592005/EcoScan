@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CameraView } from 'expo-camera';
 import type { WasteClassifier, WasteDetector, ClassificationResult, DetectionBox } from '@/ai/types';
 import { ClassifySmoother, DetectorBoxStabilizer } from '@/ai/smoothing';
-import { CLASSIFY_UNCERTAIN_AFTER_FRAMES, DETECT_INPUT_SIZE, HUD_CROP_FRACTION, INFER_MIN_INTERVAL_MS } from '@/data/thresholds';
+import { CLASSIFY_UNCERTAIN_AFTER_FRAMES, HUD_CROP_FRACTION, INFER_MIN_INTERVAL_MS } from '@/data/thresholds';
 import { categoryForClass } from '@/data/wasteRules';
 import { captureSquareBase64, decodeJpegBase64ToRgba } from '@/services/imageToTensor';
 import { perf } from '@/utils/perf';
@@ -25,7 +25,6 @@ const EMPTY_COUNTS: CategoryCounts = {
 };
 
 const MAX_CONSECUTIVE_ERRORS = 5;
-
 interface EngineInputs {
   cameraRef: { current: CameraView | null };
   mode: ScanMode;
@@ -81,13 +80,19 @@ export function useScanEngine({
           continue;
         }
 
+        // Capture at the largest active model input size (in single mode the
+        // detector also runs on the same frame for the tracking box).
+        const classifierInput = classifier?.runtime.inputSize;
+        const detectorInput = detector?.runtime.inputSize;
+        const captureSize =
+          Math.max(classifierInput ?? 0, detectorInput ?? 0) || 640;
         const t0 = Date.now();
         try {
           // Crop to the HUD square in single mode; full camera square in multi
           // mode — must match the on-screen rect passed to the overlays.
           const base64 = await captureSquareBase64(
             cam,
-            DETECT_INPUT_SIZE,
+            captureSize,
             mode === 'single' ? HUD_CROP_FRACTION : 1,
           );
           const rgba = decodeJpegBase64ToRgba(base64);

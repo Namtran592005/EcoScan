@@ -7,23 +7,18 @@ cục bộ trên thiết bị (local-first), không backend, không cloud, khôn
 - **AI inference:** `onnxruntime-react-native` (ONNX Runtime) — chạy trên CPU/NNAPI
   của thiết bị
 - **Camera:** `expo-camera` (`CameraView`) — chụp ảnh nhanh có throttling
-- **Hai chế độ:** *Một vật* (YOLOv8n classification) và *Nhiều vật* (YOLO11n detection)
+- **Hai chế độ:** *Một vật* (classification) và *Nhiều vật* (detection)
 
 ---
 
 ## Cấu trúc project
 
 ```
-assets/models/                     # 2 file ONNX (đặt tại đây)
-  wastewise-yolo.onnx              # YOLOv8n-cls: input [1,3,224,224] → [1,8]
-  yolo11_trash_detection.onnx      # YOLO11n:   input [1,3,640,640] → [1,12,8400]
-app/                               # (expo-router root, trong thư mục src)
 src/
   app/                             # Routes: _layout, index (quét), settings
   ai/                              # Lớp AI: interface, adapter ONNX, pre/post, smoothing
     types.ts                       # WasteClassifier / WasteDetector contracts
-    classifierAdapter.ts           # ONNX classification adapter
-    detectorAdapter.ts             # ONNX detection adapter
+    genericAdapter.ts              # Adapter ONNX tổng quát (model do người dùng nhập)
     preprocessing.ts               # RGBA → NCHW normalized (pooled buffer)
     postprocessing.ts              # softmax + NMS (YOLO output)
     smoothing.ts                   # temporal smoothing cho cả 2 chế độ
@@ -33,10 +28,9 @@ src/
   data/                            # QUAN TRỌNG: mọi thứ chỉnh được không cần train lại
     wasteRules.ts                  # mapping AI class → nhóm xử lý + tên tiếng Việt
     categories.ts                  # 4 nhóm hiển thị + hướng dẫn
-    detectionLabels.ts             # label của model phát hiện (class_0…class_7)
     thresholds.ts                  # ngưỡng confidence, smoothing, kích thước input…
   hooks/                           # useScanEngine, useModelAvailability, usePerfStats
-  services/                        # imageToTensor (camera→square→base64→RGBA), modelAssets
+  services/                        # imageToTensor, modelStore, modelProbe
   utils/                           # perf tracker, app settings (debug toggle)
 ```
 
@@ -64,27 +58,23 @@ Mọi ánh xạ AI → nhóm rác nằm trong `src/data/wasteRules.ts` và có t
 npm install
 ```
 
-## 2. Đặt 2 file model
+## 2. Thêm mô hình (user-imported)
 
-Tạo/sao chép vào `assets/models/` (đã có sẵn trong repo này):
+Ứng dụng **không kèm sẵn mô hình nào**. Bạn tự thêm file `.onnx` của mình:
 
-```
-assets/models/wastewise-yolo.onnx           # YOLOv8n-cls (8 class)
-assets/models/yolo11_trash_detection.onnx   # YOLO11n detect (input 640)
-```
+- Vào **⚙️ Cài đặt & thông tin → Mô hình (ONNX) → Nhập** rồi chọn file `.onnx`
+  trên thiết bị.
+- Loại model được **tự nhận dạng** từ metadata (input `[1,3,H,W]`, output
+  `[1,N]` = phân loại, `[1,4+N,A]` / `[1,A,4+N]` = phát hiện).
+- File được copy vào thư mục document của app (`models/`), không phụ thuộc
+  bundle. Gán vai trò “Phân loại” / “Phát hiện” cho từng mô hình.
+- Hỗ trợ model YOLOv8/YOLO11 classification và detection (Ultralytics export).
 
-- Model được nạp **từ bundle/assets** qua `expo-asset` (`src/services/modelAssets.ts`),
-  không hard-code đường dẫn internet.
-- `metro.config.js` đăng ký đuôi `.onnx` để Metro bundle chúng như asset.
+### Label của model
 
-### Kiểm tra class của model phát hiện (quan trọng)
-
-Model detection được export với tên chung `class_0 … class_7`. Trong
-`src/data/detectionLabels.ts`, chúng ta mặc định thứ tự giống model phân loại:
-`battery, biological, cardboard, glass, metal, paper, plastic, trash`.
-
-**Hãy đối chiếu thứ tự này với `data.yaml` dùng để train model detection.** Nếu khác,
-sửa lại `DETECTION_LABELS` — không cần chỉnh model.
+Model do người dùng nhập thường chỉ có tên chung `class_0 … class_N`. Chúng
+được hiển thị nguyên bản; nếu bạn muốn ánh xạ sang nhóm rác + tên tiếng Việt,
+chỉnh `src/data/wasteRules.ts` (không cần chỉnh model).
 
 ## 3. Chạy với Development Build (bắt buộc cho ONNX)
 
@@ -151,10 +141,12 @@ bản development.
 ## Cách nhận diện hoạt động
 
 ### Chế độ “Một vật” (classification)
-1. `captureSquareBase64(camera, 224)` — `takePictureAsync` rồi cắt **hình vuông
-   tâm khung** (đúng vùng HUD) và resize về 224×224 bằng `expo-image-manipulator`.
+1. `captureSquareBase64(camera, <inputSize>)` — `takePictureAsync` rồi cắt **hình
+   vuông tâm khung** (đúng vùng HUD) và resize về kích thước input của model bằng
+   `expo-image-manipulator`.
 2. Giải mã JPEG → RGBA bằng `jpeg-js`, chuyển NCHW chuẩn hóa 0–1 bằng buffer pool.
-3. `OnnxWasteClassifier` chạy model → 8 logits → softmax.
+3. `OnnxImportModel` chạy model → N logits → softmax (nếu output chưa là
+   phân phối xác suất).
 4. **Temporal smoothing** (`ClassifySmoother`): chỉ xác nhận khi cùng 1 class thắng
    liên tiếp `CLASSIFY_CONFIRM_STREAK` frame và confidence ≥ `CLASSIFY_CONFIDENCE_THRESHOLD`.
    Sau khi xác nhận → **đóng băng inference** để tiết kiệm CPU/pin; “Quét lại” để chạy tiếp.
@@ -162,7 +154,8 @@ bản development.
    “Không chắc chắn — đưa vật thể gần hơn, đủ sáng hơn” thay vì đoán.
 
 ### Chế độ “Nhiều vật” (detection)
-1. Cắt vuông + resize 640×640, chạy model → output `[1,12,8400]`.
+1. Cắt vuông + resize về input model, chạy model → output `[1,4+N,anchors]`
+   (hoặc dạng chuyển vị `[1,anchors,4+N]`).
 2. Post-process: chọn box theo confidence ≥ `DETECT_CONFIDENCE_THRESHOLD`, **NMS**
    (IoU ≥ `DETECT_NMS_IOU`), giới hạn `DETECT_MAX_BOXES`, lọc box nhiễu quá nhỏ.
 3. `DetectorBoxStabilizer` chỉ vẽ box xuất hiện ở ≥ 2 frame liên tiếp để hết nhấp nháy.
@@ -190,8 +183,9 @@ bản development.
 
 ## Giới hạn kỹ thuật đã biết
 
-1. **Label model detection:** thứ tự `class_0…class_7` cần được đối chiếu với dataset
-   train; chỉnh `src/data/detectionLabels.ts` nếu cần.
+1. **Label model:** model do người dùng nhập thường chỉ có tên chung
+   `class_0…class_N`; cần ánh xạ sang nhóm rác/tên tiếng Việt trong
+   `src/data/wasteRules.ts` nếu muốn hiển thị đẹp.
 2. **Inference FPS:** pipeline snapshot-based (`takePictureAsync`) đạt ~1–3 FPS trên
    Android tầm trung/thấp. Đủ cho smoothing & detection ổn định; nếu cần realtime 30 FPS,
    phải chuyển sang frame processor (vision-camera) — ngoài phạm vi hiện tại.
@@ -218,3 +212,6 @@ npx expo run:android   # build + chạy Development Build
 | Thực phẩm | 🍃 | biological |
 | Rác sinh hoạt khác | 🗑️ | trash |
 | Chất thải nguy hại | ⚠️ | battery (luôn cảnh báo riêng) |
+
+> Ánh xạ này áp dụng cho class tương ứng trong `wasteRules.ts`. Model nhập vào có
+> tên `class_0…class_N` nên mặc định chưa khớp nhóm nào — xem mục “Label của model”.

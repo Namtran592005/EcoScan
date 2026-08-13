@@ -25,6 +25,7 @@ import {
   resetClassifier,
   resetDetector,
 } from '@/ai/modelManager';
+import { useModelStoreVersion } from '@/services/modelStore';
 import { HUD_CROP_FRACTION } from '@/data/thresholds';
 import { classInfoFor } from '@/data/wasteRules';
 import type { WasteClassifier, WasteDetector } from '@/ai/types';
@@ -75,13 +76,28 @@ export default function ScanScreen() {
     }, []),
   );
 
+  const modelStoreVersion = useModelStoreVersion();
+
   const { availability: classifyAvailability, retry: retryClassifier } =
-    useModelAvailability(classifierAvailability, resetClassifier);
+    useModelAvailability(classifierAvailability, resetClassifier, modelStoreVersion);
   const { availability: detectAvailability, retry: retryDetector } =
-    useModelAvailability(detectorAvailability, resetDetector);
+    useModelAvailability(detectorAvailability, resetDetector, modelStoreVersion);
 
   const [classifier, setClassifier] = useState<WasteClassifier | null>(null);
   const [detector, setDetector] = useState<WasteDetector | null>(null);
+
+  // When the model store changes (import/remove/reassign in Settings), drop
+  // the cached adapter instances so they are re-created from the new config.
+  const prevStoreVersion = useRef(modelStoreVersion);
+  useEffect(() => {
+    if (prevStoreVersion.current !== modelStoreVersion) {
+      prevStoreVersion.current = modelStoreVersion;
+      resetClassifier();
+      resetDetector();
+      setClassifier(null);
+      setDetector(null);
+    }
+  }, [modelStoreVersion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +234,7 @@ export default function ScanScreen() {
         <ModelOverlay
           availability={currentAvailability}
           onRetry={mode === 'single' ? retryClassifier : retryDetector}
+          onAddModel={openSettings}
           visible={permissionGranted && !currentReady}
         />
 

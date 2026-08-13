@@ -1,12 +1,9 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
 /**
- * Metro config: register `.onnx` as a bundlable asset so that
- * `require('../../assets/models/xxx.onnx')` resolves to a file that can be
- * located at runtime via `expo-asset` (Asset.fromModule(...).localUri).
+ * Models are user-imported ONNX files stored in the app's document directory,
+ * not Metro assets — so no custom asset extension registration is needed.
  */
 const config = getDefaultConfig(__dirname);
-
-config.resolver.assetExts = [...config.resolver.assetExts, 'onnx'];
 
 module.exports = config;

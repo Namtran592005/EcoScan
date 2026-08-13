@@ -5,17 +5,11 @@
  * touching the models.
  */
 
-/** Single-object (classification) model input size. */
-export const CLASSIFY_INPUT_SIZE = 224;
-
 /**
  * Fraction of the camera frame analyzed in single-object mode (the on-screen
  * HUD square). Multi-object mode analyzes the full camera square.
  */
 export const HUD_CROP_FRACTION = 0.62;
-
-/** Multi-object (detection) model input size. */
-export const DETECT_INPUT_SIZE = 640;
 
 /** Minimum confidence (0..1) for a classification frame to count as a vote. */
 export const CLASSIFY_CONFIDENCE_THRESHOLD = 0.55;

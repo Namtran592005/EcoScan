@@ -6,15 +6,17 @@ import type { ModelAvailability } from '@/ai/types';
 interface Props {
   availability: ModelAvailability;
   onRetry: () => void;
-  /** Show this overlay only for loading/error/unavailable (not 'ready'). */
+  /** Called when the user wants to add a model (navigates to Settings). */
+  onAddModel?: () => void;
+  /** Show this overlay only for loading/error/unavailable/missing (not 'ready'). */
   visible: boolean;
 }
 
 /**
  * Centered overlay covering the scan area while a model loads, or explaining
- * why inference cannot run (error/unavailable). Never fakes AI results.
+ * why inference cannot run (error/unavailable/missing). Never fakes AI results.
  */
-export function ModelOverlay({ availability, onRetry, visible }: Props) {
+export function ModelOverlay({ availability, onRetry, onAddModel, visible }: Props) {
   if (!visible) return null;
 
   return (
@@ -30,6 +32,32 @@ export function ModelOverlay({ availability, onRetry, visible }: Props) {
               Mô hình nhận diện đang được nạp trên thiết bị của bạn. Vui lòng
               chờ trong giây lát.
             </Text>
+          </>
+        ) : availability.state === 'missing' ? (
+          <>
+            <View style={styles.iconWrap}>
+              <Ionicons name="cube-outline" size={34} color={Colors.warning} />
+            </View>
+            <Text style={styles.title} maxFontSizeMultiplier={1.3}>
+              Chưa có mô hình
+            </Text>
+            <Text style={styles.body} maxFontSizeMultiplier={1.5}>
+              Chế độ này cần một mô hình ONNX. Hãy thêm file mô hình của bạn
+              trong Cài đặt để bắt đầu nhận diện.
+            </Text>
+            {onAddModel ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Mở Cài đặt để thêm mô hình"
+                onPress={onAddModel}
+                style={({ pressed }) => [
+                  styles.button,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.buttonLabel}>Thêm mô hình</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : availability.state === 'unavailable' ? (
           <>
@@ -68,9 +96,6 @@ export function ModelOverlay({ availability, onRetry, visible }: Props) {
             </Text>
             <Text style={styles.error} maxFontSizeMultiplier={1.5}>
               {availability.state === 'error' ? availability.message : ''}
-            </Text>
-            <Text style={styles.body} maxFontSizeMultiplier={1.5}>
-              Kiểm tra file ONNX trong thư mục assets/models rồi thử lại.
             </Text>
             <Pressable
               accessibilityRole="button"
