@@ -46,10 +46,24 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
   /** Memory layout of the model input tensor. */
   private inputLayout: 'nchw' | 'nhwc' = 'nchw';
   private layout: 'channels-first' | 'channels-last' = 'channels-first';
+  /** Feed raw [0,255] pixels (Keras/tf2onnx rescale internally) or [0,1]. */
+  private normalizeInput: boolean;
+  /** True when the caller explicitly chose a normalization mode. */
+  private normalizeInputExplicit = false;
 
-  constructor(modelPath: string, kind: 'classifier' | 'detector') {
+  constructor(
+    modelPath: string,
+    kind: 'classifier' | 'detector',
+    options?: { normalizeInput?: boolean },
+  ) {
     this.modelPath = modelPath;
     this.kind = kind;
+    if (options?.normalizeInput !== undefined) {
+      this.normalizeInput = options.normalizeInput;
+      this.normalizeInputExplicit = true;
+    } else {
+      this.normalizeInput = true;
+    }
     this.ort = getOnnxRuntime();
     this.runtime = { status: 'loading', modelPath };
   }
@@ -115,6 +129,12 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     // may be symbolic, so only the channel position matters.
     const last = inShape[inShape.length - 1];
     this.inputLayout = last === 3 && inShape.length === 4 ? 'nhwc' : 'nchw';
+    // Channels-last inputs are typically Keras/tf2onnx exports that rescale
+    // pixels inside the graph (Rescaling layer); feed raw [0,255]. Channels-
+    // first (YOLO/Ultralytics) expects normalized [0,1].
+    if (!this.normalizeInputExplicit) {
+      this.normalizeInput = this.inputLayout !== 'nhwc';
+    }
     // Square input edge: channels-last → dim 1 (H), channels-first → dim 2 (H).
     const h =
       this.inputLayout === 'nhwc'
@@ -150,7 +170,12 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     if (!this.ort || !this.session) {
       throw new Error('Classifier session not loaded.');
     }
-    const input = rgbaToNormalized(image, this.inputSize, this.inputLayout);
+    const input = rgbaToNormalized(
+      image,
+      this.inputSize,
+      this.inputLayout,
+      this.normalizeInput,
+    );
     const tensor = new this.ort.Tensor(
       'float32',
       input,
@@ -174,7 +199,12 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     if (!this.ort || !this.session) {
       throw new Error('Detector session not loaded.');
     }
-    const input = rgbaToNormalized(image, this.inputSize, this.inputLayout);
+    const input = rgbaToNormalized(
+      image,
+      this.inputSize,
+      this.inputLayout,
+      this.normalizeInput,
+    );
     const tensor = new this.ort.Tensor(
       'float32',
       input,
