@@ -28,7 +28,9 @@ import type { WasteClassifier, WasteDetector } from '@/ai/types';
 import { perf } from '@/utils/perf';
 
 export default function ScanScreen() {
-  useKeepAwake();
+  // Suppress the unhandled-rejection from deactivate when navigating away
+  // ("current activity is no longer available" on Android).
+  useKeepAwake(undefined, { suppressDeactivateWarnings: true });
 
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -137,6 +139,7 @@ export default function ScanScreen() {
             autofocus="on"
             mirror={false}
             active
+            animateShutter={false}
           />
         ) : null}
 
