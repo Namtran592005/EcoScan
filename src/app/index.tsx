@@ -38,6 +38,22 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
 
+  // Capture a modest picture size (not the full 12MP sensor) so every scan
+  // cycle is fast and crisp — a 12MP shot per frame drops FPS and adds motion
+  // blur, which hurts detection accuracy more than resolution helps.
+  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
+  const onCameraReady = useCallback(async () => {
+    const cam = cameraRef.current;
+    if (!cam) return;
+    try {
+      const sizes = await cam.getAvailablePictureSizesAsync();
+      const chosen = pick4to3PictureSize(sizes);
+      if (chosen) setPictureSize(chosen);
+    } catch {
+      // Fall back to the camera default.
+    }
+  }, []);
+
   // Record preview (JS rAF) pacing for the debug overlay.
   useEffect(() => {
     let rafId = 0;
@@ -155,6 +171,8 @@ export default function ScanScreen() {
             active
             animateShutter={false}
             ratio="4:3"
+            pictureSize={pictureSize}
+            onCameraReady={onCameraReady}
           />
         ) : null}
 
@@ -244,6 +262,35 @@ function ErrorBanner({ message }: { message: string }) {
       </Pressable>
     </View>
   );
+}
+
+/**
+ * Pick a 4:3 picture size close to 1280×960 (a sweet spot: plenty of detail
+ * for a 640 model input, but far faster to capture/encode than 12MP on every
+ * scan frame). Falls back to the largest available 4:3 size.
+ */
+function pick4to3PictureSize(sizes: string[]): string | undefined {
+  const parsed = sizes
+    .map((s) => {
+      const m = /^(\d+)x(\d+)$/.exec(s.trim());
+      if (!m) return null;
+      const w = Number(m[1]);
+      const h = Number(m[2]);
+      return { w, h, label: s };
+    })
+    .filter((v): v is { w: number; h: number; label: string } => v !== null);
+  const fourByThree = parsed.filter((p) => {
+    const ratio = p.w / p.h;
+    return Math.abs(ratio - 4 / 3) < 0.02;
+  });
+  const pool = fourByThree.length > 0 ? fourByThree : parsed;
+  if (pool.length === 0) return undefined;
+  const target = 1440 * 1080;
+  pool.sort(
+    (a, b) =>
+      Math.abs(a.w * a.h - target) - Math.abs(b.w * b.h - target),
+  );
+  return pool[0].label;
 }
 
 /** Center a rect of `aspect` (w/h) inside `outer`, letterboxed (FIT). */
