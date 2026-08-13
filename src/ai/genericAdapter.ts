@@ -6,7 +6,7 @@ import {
   ONNX_EXECUTION_PROVIDERS,
 } from '@/data/thresholds';
 import { getOnnxRuntime, type OnnxRuntimeBinding } from './onnxRuntime';
-import { rgbaToNormalizedNchw } from './preprocessing';
+import { rgbaToNormalized } from './preprocessing';
 import { processDetectionOutput, softmaxTop1 } from './postprocessing';
 import type {
   ClassificationResult,
@@ -16,7 +16,6 @@ import type {
   WasteClassifier,
   WasteDetector,
 } from './types';
-import type { InferenceSession } from 'onnxruntime-common';
 
 /**
  * Generic ONNX wrapper for any user-imported model.
@@ -44,6 +43,8 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
   private numClasses = 0;
   private inputName = '';
   private outputName = '';
+  /** Memory layout of the model input tensor. */
+  private inputLayout: 'nchw' | 'nhwc' = 'nchw';
   private layout: 'channels-first' | 'channels-last' = 'channels-first';
 
   constructor(modelPath: string, kind: 'classifier' | 'detector') {
@@ -108,18 +109,28 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     this.outputName =
       outputMeta?.name ?? this.session.outputNames[0] ?? 'output0';
 
-    const inShape = numericShape(inputMeta);
-    const h = inShape.length === 4 ? inShape[2] : 0;
+    const inShape = inputMeta?.isTensor ? (inputMeta.shape ?? []) : [];
+    // Detect memory layout from the raw shape: [N,H,W,3] is channels-last
+    // (tf2onnx MobileNet), [N,3,H,W] is channels-first (YOLO). The batch dim
+    // may be symbolic, so only the channel position matters.
+    const last = inShape[inShape.length - 1];
+    this.inputLayout = last === 3 && inShape.length === 4 ? 'nhwc' : 'nchw';
+    // Square input edge: channels-last → dim 1 (H), channels-first → dim 2 (H).
+    const h =
+      this.inputLayout === 'nhwc'
+        ? numAt(inShape, 1)
+        : numAt(inShape, 2);
     this.inputSize = h > 0 ? h : 224;
 
-    const outShape = numericShape(outputMeta);
+    const outShape = outputMeta?.isTensor ? (outputMeta.shape ?? []) : [];
     if (outShape.length === 2) {
+      // Classifier: [N, classes] — batch may be symbolic.
       this.layout = 'channels-first';
-      this.numClasses = outShape[1] ?? 1;
+      this.numClasses = numAt(outShape, 1) || 1;
     } else if (outShape.length === 3) {
-      // Larger dim = anchors; smaller = 4 + numClasses.
-      const a = outShape[1];
-      const b = outShape[2];
+      // Detector: [1, 4+N, A] (channels-first) or [1, A, 4+N] (channels-last).
+      const a = numAt(outShape, 1);
+      const b = numAt(outShape, 2);
       if (a >= b) {
         this.layout = 'channels-last';
         this.numClasses = Math.max(1, b - 4);
@@ -139,11 +150,11 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     if (!this.ort || !this.session) {
       throw new Error('Classifier session not loaded.');
     }
-    const input = rgbaToNormalizedNchw(image, this.inputSize);
+    const input = rgbaToNormalized(image, this.inputSize, this.inputLayout);
     const tensor = new this.ort.Tensor(
       'float32',
       input,
-      [1, 3, this.inputSize, this.inputSize],
+      this.tensorShape(),
     );
     const results = await this.session.run({ [this.inputName]: tensor });
     const output = results[this.outputName];
@@ -163,11 +174,11 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
     if (!this.ort || !this.session) {
       throw new Error('Detector session not loaded.');
     }
-    const input = rgbaToNormalizedNchw(image, this.inputSize);
+    const input = rgbaToNormalized(image, this.inputSize, this.inputLayout);
     const tensor = new this.ort.Tensor(
       'float32',
       input,
-      [1, 3, this.inputSize, this.inputSize],
+      this.tensorShape(),
     );
     const results = await this.session.run({ [this.inputName]: tensor });
     const output = results[this.outputName];
@@ -194,6 +205,13 @@ export class OnnxImportModel implements WasteClassifier, WasteDetector {
   async dispose(): Promise<void> {
     this.session?.release();
     this.session = null;
+  }
+
+  /** Input tensor dimensions matching the detected model layout. */
+  private tensorShape(): number[] {
+    return this.inputLayout === 'nhwc'
+      ? [1, this.inputSize, this.inputSize, 3]
+      : [1, 3, this.inputSize, this.inputSize];
   }
 }
 
@@ -238,10 +256,8 @@ function transposeToChannelsFirst(
   return out;
 }
 
-/** Keep only the concrete integer dimensions of a (possibly symbolic) shape. */
-function numericShape(
-  meta: InferenceSession.ValueMetadata | undefined,
-): number[] {
-  if (!meta || !meta.isTensor) return [];
-  return meta.shape.filter((d): d is number => typeof d === 'number');
+/** Numeric value at `index`, or 0 when the dim is symbolic or out of range. */
+function numAt(shape: readonly (number | string)[], index: number): number {
+  const d = shape[index];
+  return typeof d === 'number' && Number.isFinite(d) ? d : 0;
 }

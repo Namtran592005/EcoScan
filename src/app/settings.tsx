@@ -16,6 +16,7 @@ import {
   setDebugEnabled,
 } from '@/utils/appSettings';
 import { invalidateModels } from '@/ai/modelManager';
+import { BUNDLED_CLASSIFIER_NAME } from '@/ai/bundledClassifier';
 import { probeModelFile } from '@/services/modelProbe';
 import {
   assignRole,
@@ -201,9 +202,10 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
         <Text style={styles.hintText}>
-          Ứng dụng không kèm sẵn mô hình nào. Hãy thêm file ONNX của bạn
-          (YOLOv8/v11 classification hoặc detection). Loại model được tự nhận
-          dạng từ metadata.
+          Ứng dụng kèm sẵn một mô hình phân loại 10 loại rác (
+          {BUNDLED_CLASSIFIER_NAME}) dùng làm mặc định. Bạn có thể thêm file
+          ONNX khác (phân loại hoặc phát hiện) — loại model được tự nhận dạng
+          từ metadata.
         </Text>
         {importError ? (
           <Text style={styles.errorText} accessibilityRole="alert">
@@ -213,7 +215,8 @@ export default function SettingsScreen() {
 
         {models.length === 0 ? (
           <Text style={styles.emptyText}>
-            Chưa có mô hình nào. Bấm “Nhập” để chọn file .onnx trên thiết bị.
+            Chưa có mô hình tự thêm. Mô hình phân loại mặc định đang được dùng —
+            bấm “Nhập” nếu muốn thay bằng file .onnx khác.
           </Text>
         ) : (
           models.map((model) => (
@@ -272,7 +275,7 @@ export default function SettingsScreen() {
         <InfoRow
           icon="cube-outline"
           label="Phân loại (Một vật)"
-          value={classifierName ?? 'Chưa chọn'}
+          value={classifierName ?? BUNDLED_CLASSIFIER_NAME}
         />
         <View style={styles.separator} />
         <InfoRow

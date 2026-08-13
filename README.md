@@ -19,7 +19,7 @@ src/
   ai/                              # Lớp AI: interface, adapter ONNX, pre/post, smoothing
     types.ts                       # WasteClassifier / WasteDetector contracts
     genericAdapter.ts              # Adapter ONNX tổng quát (model do người dùng nhập)
-    preprocessing.ts               # RGBA → NCHW normalized (pooled buffer)
+    preprocessing.ts               # RGBA → tensor NCHW/HWC normalized (pooled buffer)
     postprocessing.ts              # softmax + NMS (YOLO output)
     smoothing.ts                   # temporal smoothing cho cả 2 chế độ
     onnxRuntime.ts                 # lazy-load ORT binding (an toàn khi không có native)
@@ -58,23 +58,31 @@ Mọi ánh xạ AI → nhóm rác nằm trong `src/data/wasteRules.ts` và có t
 npm install
 ```
 
-## 2. Thêm mô hình (user-imported)
+## 2. Mô hình
 
-Ứng dụng **không kèm sẵn mô hình nào**. Bạn tự thêm file `.onnx` của mình:
+Ứng dụng **kèm sẵn** một mô hình phân loại **10 loại rác** (`assets/models/phanloai.onnx`,
+MobileNetV2 224×224, chuẩn hóa [0,1], input HWC) dùng làm mặc định. Thứ tự lớp khớp
+thứ tự thư mục huấn luyện: `battery, biological, cardboard, clothes, glass, metal,
+paper, plastic, shoes, trash` (xem `BUNDLED_CLASSIFIER_CLASS_ORDER` trong
+`src/data/wasteRules.ts`).
+
+Ngoài ra bạn có thể thêm file `.onnx` khác:
 
 - Vào **⚙️ Cài đặt & thông tin → Mô hình (ONNX) → Nhập** rồi chọn file `.onnx`
   trên thiết bị.
-- Loại model được **tự nhận dạng** từ metadata (input `[1,3,H,W]`, output
-  `[1,N]` = phân loại, `[1,4+N,A]` / `[1,A,4+N]` = phát hiện).
+- Loại model được **tự nhận dạng** từ metadata. Input hỗ trợ cả layout
+  `[N,3,H,W]` (NCHW) lẫn `[N,H,W,3]` (HWC); output `[1,N]` = phân loại,
+  `[1,4+N,A]` / `[1,A,4+N]` = phát hiện (batch có thể là kích thước symbolic).
 - File được copy vào thư mục document của app (`models/`), không phụ thuộc
   bundle. Gán vai trò “Phân loại” / “Phát hiện” cho từng mô hình.
 - Hỗ trợ model YOLOv8/YOLO11 classification và detection (Ultralytics export).
 
 ### Label của model
 
-Model do người dùng nhập thường chỉ có tên chung `class_0 … class_N`. Chúng
-được hiển thị nguyên bản; nếu bạn muốn ánh xạ sang nhóm rác + tên tiếng Việt,
-chỉnh `src/data/wasteRules.ts` (không cần chỉnh model).
+Adapter trả về tên chung `class_0 … class_N`. Với model kèm sẵn, `class_N` được
+ánh xạ sang tên tiếng Việt + nhóm xử lý theo thứ tự ở trên. Nếu bạn import một
+model khác có thứ tự lớp khác, chỉnh `BUNDLED_CLASSIFIER_CLASS_ORDER` (hoặc phần
+mapping) trong `src/data/wasteRules.ts` — không cần chỉnh model.
 
 ## 3. Chạy với Development Build (bắt buộc cho ONNX)
 
@@ -144,7 +152,8 @@ bản development.
 1. `captureSquareBase64(camera, <inputSize>)` — `takePictureAsync` rồi cắt **hình
    vuông tâm khung** (đúng vùng HUD) và resize về kích thước input của model bằng
    `expo-image-manipulator`.
-2. Giải mã JPEG → RGBA bằng `jpeg-js`, chuyển NCHW chuẩn hóa 0–1 bằng buffer pool.
+2. Giải mã JPEG → RGBA bằng `jpeg-js`, chuyển tensor chuẩn hóa 0–1 bằng buffer pool.
+   Layout tensor tự động theo model: NCHW hoặc HWC (`rgbaToNormalized`).
 3. `OnnxImportModel` chạy model → N logits → softmax (nếu output chưa là
    phân phối xác suất).
 4. **Temporal smoothing** (`ClassifySmoother`): chỉ xác nhận khi cùng 1 class thắng
@@ -183,9 +192,9 @@ bản development.
 
 ## Giới hạn kỹ thuật đã biết
 
-1. **Label model:** model do người dùng nhập thường chỉ có tên chung
-   `class_0…class_N`; cần ánh xạ sang nhóm rác/tên tiếng Việt trong
-   `src/data/wasteRules.ts` nếu muốn hiển thị đẹp.
+1. **Label model:** model nhập ngoài chỉ có tên chung `class_0…class_N`; cần ánh xạ
+   sang nhóm rác/tên tiếng Việt trong `src/data/wasteRules.ts` nếu thứ tự lớp khác
+   model kèm sẵn.
 2. **Inference FPS:** pipeline snapshot-based (`takePictureAsync`) đạt ~1–3 FPS trên
    Android tầm trung/thấp. Đủ cho smoothing & detection ổn định; nếu cần realtime 30 FPS,
    phải chuyển sang frame processor (vision-camera) — ngoài phạm vi hiện tại.
@@ -208,10 +217,11 @@ npx expo run:android   # build + chạy Development Build
 
 | Nhóm | Emoji | Nội dung |
 |------|-------|----------|
-| Tái chế | ♻️ | plastic, paper, cardboard, glass, metal |
+| Tái chế | ♻️ | plastic, paper, cardboard, glass, metal, clothes, shoes |
 | Thực phẩm | 🍃 | biological |
 | Rác sinh hoạt khác | 🗑️ | trash |
 | Chất thải nguy hại | ⚠️ | battery (luôn cảnh báo riêng) |
 
-> Ánh xạ này áp dụng cho class tương ứng trong `wasteRules.ts`. Model nhập vào có
-> tên `class_0…class_N` nên mặc định chưa khớp nhóm nào — xem mục “Label của model”.
+> Ánh xạ này áp dụng cho class tương ứng trong `wasteRules.ts`. Model kèm sẵn ánh
+> xạ theo `class_0…class_9` → 10 loại ở mục “Mô hình”; model nhập ngoài cần chỉnh
+> `BUNDLED_CLASSIFIER_CLASS_ORDER` nếu thứ tự lớp khác.

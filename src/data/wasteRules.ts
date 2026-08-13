@@ -14,10 +14,12 @@ export type WasteClassId =
   | 'battery'
   | 'biological'
   | 'cardboard'
+  | 'clothes'
   | 'glass'
   | 'metal'
   | 'paper'
   | 'plastic'
+  | 'shoes'
   | 'trash';
 
 export interface WasteClassInfo {
@@ -37,6 +39,8 @@ export const WASTE_CLASS_TO_CATEGORY: Record<WasteClassId, WasteCategoryId> = {
   cardboard: 'recyclable',
   glass: 'recyclable',
   metal: 'recyclable',
+  clothes: 'recyclable',
+  shoes: 'recyclable',
   biological: 'food',
   battery: 'hazardous',
   trash: 'other',
@@ -62,6 +66,13 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
     fieldName: 'Cardboard',
     emoji: '📦',
     tip: 'Bóp dẹp trước khi bỏ để tiết kiệm diện tích.',
+    category: 'recyclable',
+  },
+  clothes: {
+    name: 'Quần áo cũ',
+    fieldName: 'Clothes',
+    emoji: '👕',
+    tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng rác phù hợp.',
     category: 'recyclable',
   },
   glass: {
@@ -92,6 +103,13 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
     tip: 'Đổ hết chất lỏng trước khi phân loại nếu phù hợp.',
     category: 'recyclable',
   },
+  shoes: {
+    name: 'Giày dép',
+    fieldName: 'Shoes',
+    emoji: '👟',
+    tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng rác phù hợp.',
+    category: 'recyclable',
+  },
   trash: {
     name: 'Rác khác',
     fieldName: 'Trash',
@@ -101,18 +119,48 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
   },
 };
 
+/**
+ * Order of the bundled 10-class classifier (assets/models/phanloai.onnx),
+ * matching the training folder order: index 0 = battery … 9 = trash.
+ * The adapter returns generic keys `class_0..class_9`; this array maps them
+ * onto named waste classes so the UI shows real labels.
+ */
+export const BUNDLED_CLASSIFIER_CLASS_ORDER: WasteClassId[] = [
+  'battery',
+  'biological',
+  'cardboard',
+  'clothes',
+  'glass',
+  'metal',
+  'paper',
+  'plastic',
+  'shoes',
+  'trash',
+];
+
 /** Look up the full category for an AI class key. */
 export function categoryForClass(
   className: string,
 ): WasteCategoryId | undefined {
-  return WASTE_CLASS_TO_CATEGORY[
-    className as WasteClassId
-  ];
+  const id = resolveWasteClassId(className);
+  return id ? WASTE_CLASS_TO_CATEGORY[id] : undefined;
 }
 
 /** Look up human-facing info for an AI class key. */
 export function classInfoFor(className: string): WasteClassInfo | undefined {
-  return WASTE_CLASSES[className as WasteClassId];
+  const id = resolveWasteClassId(className);
+  return id ? WASTE_CLASSES[id] : undefined;
+}
+
+/** Resolve `class_N` (adapter output) or a direct class key to a known id. */
+function resolveWasteClassId(className: string): WasteClassId | undefined {
+  const indexed = /^class_(\d+)$/.exec(className);
+  if (indexed) {
+    return BUNDLED_CLASSIFIER_CLASS_ORDER[Number(indexed[1])];
+  }
+  return WASTE_CLASSES[className as WasteClassId]
+    ? (className as WasteClassId)
+    : undefined;
 }
 
 /** Order used for per-category statistics in multi-object mode. */

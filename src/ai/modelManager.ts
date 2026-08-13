@@ -1,4 +1,5 @@
 import { OnnxImportModel } from './genericAdapter';
+import { bundledClassifierPath } from './bundledClassifier';
 import type { ModelAvailability, WasteClassifier, WasteDetector } from './types';
 import { getActiveModel, modelPathFor } from '@/services/modelStore';
 
@@ -26,10 +27,10 @@ export function invalidateModels(): void {
 function createClassifier(): Promise<WasteClassifier> {
   classifierPromise = (async () => {
     const entry = await getActiveModel('classifier');
-    if (!entry) {
-      throw new Error('CHUA_CO_MODEL');
-    }
-    const adapter = new OnnxImportModel(modelPathFor(entry), 'classifier');
+    const modelPath = entry
+      ? modelPathFor(entry)
+      : await bundledClassifierPath();
+    const adapter = new OnnxImportModel(modelPath, 'classifier');
     await adapter.load();
     return adapter;
   })();
@@ -61,11 +62,10 @@ export function getDetector(): Promise<WasteDetector> {
 
 /**
  * Best-effort: resolve a classifier availability state without throwing.
- * Returns `{ state: 'missing' }` when no classifier model is configured.
+ * The bundled classifier is always available as a fallback, so this can only
+ * be `missing` when the bundled asset itself cannot be resolved.
  */
 export async function classifierAvailability(): Promise<ModelAvailability> {
-  const entry = await getActiveModel('classifier');
-  if (!entry) return { state: 'missing' };
   return resolveAvailability(getClassifier);
 }
 
