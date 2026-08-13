@@ -1,19 +1,21 @@
 import type { CameraView } from 'expo-camera';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import jpeg from 'jpeg-js';
-import { CAPTURE_QUALITY } from '@/data/thresholds';
+import { CAPTURE_QUALITY, HUD_CROP_FRACTION } from '@/data/thresholds';
 import type { RgbaImage } from '@/ai/types';
 
 /**
- * Captures one camera frame, center-crops it into a square (matching the
- * square preview / HUD region) and resizes it to the model input size.
+ * Captures one camera frame and center-crops it to the HUD square region
+ * (`cropFraction` of the photo's min dimension — same fraction the on-screen
+ * square uses), then resizes it to the model input size.
  *
- * Returns a base64 JPEG string. Native crop+resize keeps the JS thread light
- * and guarantees square input without letterboxing distortion.
+ * Returning a base64 JPEG. Native crop+resize keeps the JS thread light and
+ * guarantees square input without letterboxing distortion.
  */
 export async function captureSquareBase64(
   cameraRef: CameraView,
   targetSize: number,
+  cropFraction = HUD_CROP_FRACTION,
 ): Promise<string> {
   const photo = await cameraRef.takePictureAsync({
     quality: CAPTURE_QUALITY,
@@ -22,7 +24,7 @@ export async function captureSquareBase64(
   });
   if (!photo) throw new Error('Camera không trả về ảnh.');
 
-  const side = Math.min(photo.width, photo.height);
+  const side = Math.round(Math.min(photo.width, photo.height) * cropFraction);
   const originX = Math.round((photo.width - side) / 2);
   const originY = Math.round((photo.height - side) / 2);
 

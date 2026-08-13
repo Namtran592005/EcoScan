@@ -101,6 +101,12 @@ export class DetectorBoxStabilizer {
   private previous: DetectionBox[] = [];
 
   track(detections: DetectionBox[], minOverlap = 0.3): DetectionBox[] {
+    // First frame: nothing to compare against yet — show everything so the
+    // overlay responds immediately instead of waiting for the next frame.
+    if (this.previous.length === 0) {
+      this.previous = detections;
+      return detections;
+    }
     const stable: DetectionBox[] = [];
     for (const box of detections) {
       let found = false;

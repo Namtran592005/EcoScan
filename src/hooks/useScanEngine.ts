@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CameraView } from 'expo-camera';
 import type { WasteClassifier, WasteDetector, ClassificationResult, DetectionBox } from '@/ai/types';
 import { ClassifySmoother, DetectorBoxStabilizer } from '@/ai/smoothing';
-import { CLASSIFY_UNCERTAIN_AFTER_FRAMES, INFER_MIN_INTERVAL_MS } from '@/data/thresholds';
+import { CLASSIFY_UNCERTAIN_AFTER_FRAMES, DETECT_INPUT_SIZE, HUD_CROP_FRACTION, INFER_MIN_INTERVAL_MS } from '@/data/thresholds';
 import { categoryForClass } from '@/data/wasteRules';
 import { captureSquareBase64, decodeJpegBase64ToRgba } from '@/services/imageToTensor';
 import { perf } from '@/utils/perf';
@@ -83,15 +83,37 @@ export function useScanEngine({
 
         const t0 = Date.now();
         try {
+          // Crop to the HUD square in single mode; full camera square in multi
+          // mode — must match the on-screen rect passed to the overlays.
+          const base64 = await captureSquareBase64(
+            cam,
+            DETECT_INPUT_SIZE,
+            mode === 'single' ? HUD_CROP_FRACTION : 1,
+          );
+          const rgba = decodeJpegBase64ToRgba(base64);
+
           if (mode === 'single') {
             if (!classifier) continue;
-            const base64 = await captureSquareBase64(cam, 224);
-            const rgba = decodeJpegBase64ToRgba(base64);
+
             const result = await classifier.classify(rgba);
+
+            // Realtime box: reuse the detector on the same frame so the object
+            // gets a thin tracking frame while scanning and a tight box on
+            // confirm (instead of the static green square).
+            let boxes: DetectionBox[] = [];
+            if (detector) {
+              const raw = await detector.detect(rgba);
+              boxes = stabilizer.track(raw);
+            }
 
             smoother.push(result.className, result.confidence);
             perf.recordCycle(Date.now() - t0);
             errors = 0;
+
+            setDetections((prev) => (sameBoxes(prev, boxes) ? prev : boxes));
+            const stats = computeCounts(boxes);
+            setCounts(stats.counts);
+            setObjectCount(stats.objectCount);
 
             const confirmed = smoother.confirmedResult;
             if (confirmed) {
@@ -109,8 +131,6 @@ export function useScanEngine({
             }
           } else {
             if (!detector) continue;
-            const base64 = await captureSquareBase64(cam, 640);
-            const rgba = decodeJpegBase64ToRgba(base64);
             const rawBoxes = await detector.detect(rgba);
             const stable = stabilizer.track(rawBoxes);
             perf.recordCycle(Date.now() - t0);

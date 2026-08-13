@@ -25,6 +25,8 @@ import {
   resetClassifier,
   resetDetector,
 } from '@/ai/modelManager';
+import { HUD_CROP_FRACTION } from '@/data/thresholds';
+import { classInfoFor } from '@/data/wasteRules';
 import type { WasteClassifier, WasteDetector } from '@/ai/types';
 import { perf } from '@/utils/perf';
 
@@ -102,9 +104,10 @@ export default function ScanScreen() {
     detector,
   });
 
-  // Square scan region = compact centred square (~62% of preview zone) so the
-  // iOS frame reads as a tight, focused scan target while preserving enough
-  // surrounding context for the model.
+  // The camera photo is 4:3 (matches `ratio="4:3"` on CameraView, which sets
+  // the preview scale to FIT). We compute the actual visible camera rect so the
+  // HUD square and detection boxes align with the region the model analyzes —
+  // otherwise boxes drift off the real object ("no feedback" / inaccurate).
   const [zoneSize, setZoneSize] = useState({ width: 0, height: 0 });
   const onZoneLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -112,13 +115,18 @@ export default function ScanScreen() {
       setZoneSize({ width, height });
     });
   };
+  const cameraRect = fitAspect(zoneSize, 4 / 3);
+  // Single-object mode analyzes the HUD square (62% of the camera rect);
+  // multi-object mode analyzes the full camera square so objects anywhere in
+  // the frame are detected.
   const side = Math.max(
     0,
-    Math.min(zoneSize.width, zoneSize.height) * 0.62,
+    Math.min(cameraRect.width, cameraRect.height) *
+      (mode === 'single' ? HUD_CROP_FRACTION : 1),
   );
   const previewRect = {
-    x: (zoneSize.width - side) / 2,
-    y: (zoneSize.height - side) / 2,
+    x: cameraRect.x + (cameraRect.width - side) / 2,
+    y: cameraRect.y + (cameraRect.height - side) / 2,
     width: side,
     height: side,
   };
@@ -146,16 +154,38 @@ export default function ScanScreen() {
             mirror={false}
             active
             animateShutter={false}
+            ratio="4:3"
           />
         ) : null}
 
         {permissionGranted && side > 0 ? (
           mode === 'single' ? (
-            <HudOverlay
-              side={side}
-              status={engine.status}
-              uncertainHint={engine.uncertainHint}
-            />
+            <>
+              {engine.status === 'confirmed' ? (
+                // Tight green box wrapping the object replaces the static
+                // square once the object is identified.
+                <DetectionOverlay
+                  rect={previewRect}
+                  boxes={engine.detections}
+                  confirmed
+                  confirmedLabel={
+                    engine.classification
+                      ? classInfoFor(engine.classification.className)?.fieldName ??
+                        engine.classification.className
+                      : undefined
+                  }
+                />
+              ) : (
+                <>
+                  <DetectionOverlay rect={previewRect} boxes={engine.detections} />
+                  <HudOverlay
+                    side={side}
+                    status={engine.status}
+                    uncertainHint={engine.uncertainHint}
+                  />
+                </>
+              )}
+            </>
           ) : (
             <DetectionOverlay rect={previewRect} boxes={engine.detections} />
           )
@@ -214,6 +244,34 @@ function ErrorBanner({ message }: { message: string }) {
       </Pressable>
     </View>
   );
+}
+
+/** Center a rect of `aspect` (w/h) inside `outer`, letterboxed (FIT). */
+function fitAspect(
+  outer: { width: number; height: number },
+  aspect: number,
+): { x: number; y: number; width: number; height: number } {
+  const { width, height } = outer;
+  if (width <= 0 || height <= 0) {
+    return { x: 0, y: 0, width: 0, height: 0 };
+  }
+  let w: number;
+  let h: number;
+  if (width / aspect <= height) {
+    // Fit by width; height is derived (letterbox top/bottom).
+    w = width;
+    h = width / aspect;
+  } else {
+    // Fit by height; width is derived (letterbox left/right).
+    h = height;
+    w = height * aspect;
+  }
+  return {
+    x: (width - w) / 2,
+    y: (height - h) / 2,
+    width: w,
+    height: h,
+  };
 }
 
 const styles = StyleSheet.create({
