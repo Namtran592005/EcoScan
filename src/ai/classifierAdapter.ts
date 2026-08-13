@@ -5,7 +5,6 @@ import {
 } from '@/data/detectionLabels';
 import { getOnnxRuntime, type OnnxRuntimeBinding } from './onnxRuntime';
 import { rgbaToNormalizedNchw } from './preprocessing';
-import { softmaxTop1 } from './postprocessing';
 import type {
   ClassificationResult,
   ModelRuntimeInfo,
@@ -93,7 +92,16 @@ export class OnnxWasteClassifier implements WasteClassifier {
     const results = await this.session.run({ [INPUT_NAME]: tensor });
     const output = results[OUTPUT_NAME];
     const data = output.data as Float32Array;
-    const { index, probability } = softmaxTop1(data);
+    // The exported graph already ends with Softmax, so `output0` IS a
+    // probability distribution (not raw logits) — read argmax directly.
+    let index = 0;
+    let probability = 0;
+    for (let i = 0; i < data.length; i++) {
+      if (data[i] > probability) {
+        probability = data[i];
+        index = i;
+      }
+    }
     const className: WasteClassId = CLASSIFY_LABELS[index] ?? 'trash';
     return { className, confidence: probability };
   }
