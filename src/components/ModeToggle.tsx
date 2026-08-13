@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii, TouchTarget } from '@/constants/theme';
 import type { ScanMode } from '@/hooks/useScanEngine';
 
@@ -8,10 +9,11 @@ interface Props {
   disabled?: boolean;
 }
 
-const OPTIONS: { value: ScanMode; label: string }[] = [
-  { value: 'single', label: 'Một vật' },
-  { value: 'multi', label: 'Nhiều vật' },
-];
+const OPTIONS: { value: ScanMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] =
+  [
+    { value: 'single', label: 'Một vật', icon: 'cube-outline' },
+    { value: 'multi', label: 'Nhiều vật', icon: 'layers-outline' },
+  ];
 
 export function ModeToggle({ value, onChange, disabled }: Props) {
   return (
@@ -39,6 +41,11 @@ export function ModeToggle({ value, onChange, disabled }: Props) {
               pressed && styles.optionPressed,
             ]}
           >
+            <Ionicons
+              name={option.icon}
+              size={16}
+              color={selected ? Colors.text : Colors.textMuted}
+            />
             <Text
               style={[styles.label, selected && styles.labelActive]}
               maxFontSizeMultiplier={1.4}
@@ -55,35 +62,37 @@ export function ModeToggle({ value, onChange, disabled }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: 'rgba(44,44,46,0.9)',
     borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     padding: 3,
+    gap: 2,
   },
   disabled: {
     opacity: 0.5,
   },
   option: {
     flex: 1,
-    minHeight: TouchTarget,
+    minHeight: TouchTarget - 12,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: Radii.sm,
+    gap: 6,
+    borderRadius: Radii.md - 3,
     paddingHorizontal: 8,
   },
   optionActive: {
-    backgroundColor: Colors.accentDim,
+    backgroundColor: Colors.surfaceHigh,
   },
   optionPressed: {
     opacity: 0.7,
   },
   label: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     fontSize: 15,
     fontWeight: '600',
   },
   labelActive: {
-    color: Colors.accent,
+    color: Colors.text,
+    fontWeight: '700',
   },
 });

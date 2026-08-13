@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -101,7 +102,9 @@ export default function ScanScreen() {
     detector,
   });
 
-  // Square scan region = centred min-dimension square of the preview zone.
+  // Square scan region = compact centred square (~62% of preview zone) so the
+  // iOS frame reads as a tight, focused scan target while preserving enough
+  // surrounding context for the model.
   const [zoneSize, setZoneSize] = useState({ width: 0, height: 0 });
   const onZoneLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -109,7 +112,10 @@ export default function ScanScreen() {
       setZoneSize({ width, height });
     });
   };
-  const side = Math.max(0, Math.min(zoneSize.width, zoneSize.height));
+  const side = Math.max(
+    0,
+    Math.min(zoneSize.width, zoneSize.height) * 0.62,
+  );
   const previewRect = {
     x: (zoneSize.width - side) / 2,
     y: (zoneSize.height - side) / 2,
@@ -201,6 +207,7 @@ function ErrorBanner({ message }: { message: string }) {
   return (
     <View style={styles.errorBanner} accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <Pressable style={styles.errorPressable} disabled>
+        <Ionicons name="alert-circle" size={18} color="#FFFFFF" />
         <Text style={styles.errorText} maxFontSizeMultiplier={1.4}>
           {message}
         </Text>
@@ -236,12 +243,16 @@ const styles = StyleSheet.create({
     bottom: Spacing.md,
   },
   errorPressable: {
-    backgroundColor: 'rgba(248,113,113,0.92)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,69,58,0.92)',
     borderRadius: Radii.md,
     padding: Spacing.md,
   },
   errorText: {
-    color: '#3B0A0A',
+    flex: 1,
+    color: '#FFFFFF',
     fontSize: Font.small,
     fontWeight: '700',
     textAlign: 'center',

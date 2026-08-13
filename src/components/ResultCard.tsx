@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Font, Radii, Spacing, TouchTarget } from '@/constants/theme';
 import { CATEGORIES } from '@/data/categories';
 import { classInfoFor, categoryForClass } from '@/data/wasteRules';
@@ -35,8 +36,14 @@ export function ResultCard({ result, onReset }: Props) {
           {uncertain ? 'Không chắc chắn' : displayName}
         </Text>
         {!uncertain ? (
-          <Text style={styles.confidence}>{Math.round(result.confidence * 100)}%</Text>
-        ) : null}
+          <View style={styles.confidencePill}>
+            <Text style={styles.confidence}>
+              {Math.round(result.confidence * 100)}%
+            </Text>
+          </View>
+        ) : (
+          <Ionicons name="help-circle-outline" size={22} color={Colors.warning} />
+        )}
       </View>
 
       {uncertain ? (
@@ -53,8 +60,9 @@ export function ResultCard({ result, onReset }: Props) {
           ) : null}
           {category?.warningNote ? (
             <View style={styles.warningBanner} accessibilityRole="alert">
+              <Ionicons name="warning" size={18} color={Colors.danger} />
               <Text style={styles.warningText} maxFontSizeMultiplier={1.5}>
-                {category.emoji} {category.warningNote}
+                {category.warningNote}
               </Text>
             </View>
           ) : null}
@@ -70,6 +78,7 @@ export function ResultCard({ result, onReset }: Props) {
           pressed && styles.resetPressed,
         ]}
       >
+        <Ionicons name="refresh" size={18} color="#FFFFFF" />
         <Text style={styles.resetLabel}>Quét lại</Text>
       </Pressable>
     </View>
@@ -87,13 +96,12 @@ function wantName(result: ClassificationResult, infoName?: string): string {
 
 export function ScanHint() {
   return (
-    <View style={styles.card} accessibilityLiveRegion="polite">
-      <Text style={styles.hintEmoji} allowFontScaling={false}>
-        🎯
-      </Text>
+    <View style={styles.hintCard} accessibilityLiveRegion="polite">
+      <View style={styles.hintIconWrap}>
+        <Ionicons name="scan-outline" size={24} color={Colors.accent} />
+      </View>
       <Text style={styles.hintText} maxFontSizeMultiplier={1.5}>
-        Đưa một món rác vào khung giữa màn hình và giữ yên trong vài giây để
-        phân tích.
+        Đưa một món rác vào khung giữa và giữ yên vài giây để phân tích.
       </Text>
     </View>
   );
@@ -101,10 +109,10 @@ export function ScanHint() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.glass,
     borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
     padding: Spacing.lg,
     gap: Spacing.sm,
   },
@@ -120,26 +128,34 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.text,
     fontSize: Font.heading,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  confidencePill: {
+    backgroundColor: 'rgba(10,132,255,0.2)',
+    borderRadius: Radii.md,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   confidence: {
     color: Colors.accent,
-    fontSize: Font.body,
-    fontWeight: '800',
+    fontSize: Font.small,
+    fontWeight: '700',
   },
   guidance: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.small,
     lineHeight: 20,
   },
   warningBanner: {
-    backgroundColor: 'rgba(248,113,113,0.16)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(255,69,58,0.16)',
     borderRadius: Radii.md,
     padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.4)',
   },
   warningText: {
+    flex: 1,
     color: Colors.danger,
     fontSize: Font.small,
     fontWeight: '600',
@@ -147,26 +163,44 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     marginTop: Spacing.sm,
-    minHeight: TouchTarget,
+    minHeight: TouchTarget - 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderRadius: Radii.md,
     backgroundColor: Colors.accent,
+  },
+  resetPressed: {
+    opacity: 0.85,
+  },
+  resetLabel: {
+    color: '#FFFFFF',
+    fontSize: Font.body,
+    fontWeight: '700',
+  },
+  hintCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.glass,
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    padding: Spacing.lg,
+  },
+  hintIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(10,132,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resetPressed: {
-    opacity: 0.8,
-  },
-  resetLabel: {
-    color: '#062A33',
-    fontSize: Font.body,
-    fontWeight: '800',
-  },
-  hintEmoji: {
-    fontSize: 24,
-  },
   hintText: {
-    color: Colors.textSecondary,
-    fontSize: Font.body,
-    lineHeight: 22,
+    flex: 1,
+    color: Colors.textTernary,
+    fontSize: Font.small,
+    lineHeight: 21,
   },
 });

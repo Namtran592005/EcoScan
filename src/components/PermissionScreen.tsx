@@ -1,4 +1,5 @@
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Font, Radii, Spacing, TouchTarget } from '@/constants/theme';
 
 interface Props {
@@ -15,9 +16,9 @@ export function PermissionScreen({ canAskAgain, onRequest }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.emoji} allowFontScaling={false}>
-          📷
-        </Text>
+        <View style={styles.iconWrap}>
+          <Ionicons name="camera" size={36} color={Colors.accent} />
+        </View>
         <Text style={styles.title} maxFontSizeMultiplier={1.3}>
           Cần quyền camera
         </Text>
@@ -46,7 +47,7 @@ export function PermissionScreen({ canAskAgain, onRequest }: Props) {
               onPress={openSettings}
               style={({ pressed }) => [styles.button, pressed && styles.pressed]}
             >
-              <Text style={styles.buttonLabel}>Mở cài đặt hệ thống</Text>
+              <Text style={styles.buttonLabel}>Mở Cài đặt</Text>
             </Pressable>
           </View>
         )}
@@ -66,25 +67,31 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceHigh,
     borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
     padding: Spacing.xl,
     gap: Spacing.md,
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 44,
+  iconWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(10,132,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
   },
   title: {
     color: Colors.text,
     fontSize: Font.heading,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
   body: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.body,
     lineHeight: 22,
     textAlign: 'center',
@@ -104,11 +111,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
   buttonLabel: {
-    color: '#062A33',
+    color: '#FFFFFF',
     fontSize: Font.body,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

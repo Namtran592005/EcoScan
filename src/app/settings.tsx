@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Font, Radii, Spacing } from '@/constants/theme';
 import {
   useDebugEnabled,
@@ -54,44 +55,56 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Section title="Gỡ lỗi (Debug)">
+      <Section title="Gỡ lỗi">
         <View style={styles.row}>
-          <Text style={styles.text}>Hiển thị overlay debug trên màn hình quét</Text>
+          <IconLabel icon="bug-outline" tint={[255,214,10]} label="Overlay debug" />
           <Switch
             value={debugEnabled}
             onValueChange={setDebugEnabled}
             accessibilityLabel="Bật overlay debug trên màn hình quét"
+            trackColor={{ true: Colors.accent, false: '#3A3A3C' }}
+            thumbColor="#FFFFFF"
           />
         </View>
-        <View style={styles.hintBox}>
-          <Text style={styles.hintText}>
-            Overlay chỉ hiển thị trong bản development — không xuất hiện ở bản
-            production vì không có cơ chế bật tại runtime khi release.
-          </Text>
-        </View>
+        <Text style={styles.hintText}>
+          Overlay chỉ hiển thị trong bản development — không xuất hiện ở bản
+          production vì không có cơ chế bật tại runtime khi release.
+        </Text>
       </Section>
 
       <Section title="Mô hình (ONNX)">
-        <InfoRow label="Phân loại (Một vật)" value={describeRuntime(classifierRuntime)} />
-        <InfoRow label="Phát hiện (Nhiều vật)" value={describeRuntime(detectorRuntime)} />
-        <View style={styles.hintBox}>
-          <Text style={styles.hintText}>
-            Input: phân loại {CLASSIFY_INPUT_SIZE}², phát hiện {DETECT_INPUT_SIZE}².
-            EP = execution provider ONNX Runtime đang dùng.
-          </Text>
-        </View>
+        <InfoRow
+          icon="cube-outline"
+          label="Phân loại (Một vật)"
+          value={describeRuntime(classifierRuntime)}
+        />
+        <View style={styles.separator} />
+        <InfoRow
+          icon="layers-outline"
+          label="Phát hiện (Nhiều vật)"
+          value={describeRuntime(detectorRuntime)}
+        />
+        <Text style={styles.hintText}>
+          Input: phân loại {CLASSIFY_INPUT_SIZE}², phát hiện {DETECT_INPUT_SIZE}².
+          EP = execution provider ONNX Runtime đang dùng.
+        </Text>
       </Section>
 
       <Section title="Ngưỡng phân loại">
         <InfoRow
+          icon="stats-chart-outline"
           label="Confidence (Một vật)"
           value={`≥ ${Math.round(CLASSIFY_CONFIDENCE_THRESHOLD * 100)}%`}
         />
+        <View style={styles.separator} />
         <InfoRow
+          icon="repeat-outline"
           label="Số frame ổn định"
-          value={`${CLASSIFY_SMOOTHING_WINDOW} cửa sổ / ${CLASSIFY_CONFIRM_STREAK} streak`}
+          value={`${CLASSIFY_SMOOTHING_WINDOW} / ${CLASSIFY_CONFIRM_STREAK} streak`}
         />
+        <View style={styles.separator} />
         <InfoRow
+          icon="scan-outline"
           label="Confidence (Nhiều vật)"
           value={`≥ ${Math.round(DETECT_CONFIDENCE_THRESHOLD * 100)}%`}
         />
@@ -100,9 +113,11 @@ export default function SettingsScreen() {
       <Section title="Nhóm xử lý">
         {CATEGORY_ORDER.map((id) => (
           <View key={id} style={styles.categoryRow}>
-            <Text style={styles.categoryEmoji} allowFontScaling={false}>
-              {CATEGORIES[id].emoji}
-            </Text>
+            <View style={[styles.emojiTile, { backgroundColor: CATEGORIES[id].softBg }]}>
+              <Text style={styles.categoryEmoji} allowFontScaling={false}>
+                {CATEGORIES[id].emoji}
+              </Text>
+            </View>
             <View style={styles.categoryBody}>
               <Text style={[styles.categoryTitle, { color: CATEGORIES[id].color }]}>
                 {CATEGORIES[id].title}
@@ -115,20 +130,21 @@ export default function SettingsScreen() {
 
       <Section title="Ánh xạ loại AI → Nhóm">
         {(Object.keys(WASTE_CLASSES) as (keyof typeof WASTE_CLASSES)[]).map(
-          (key) => (
-            <InfoRow
-              key={key}
-              label={`${WASTE_CLASSES[key].emoji} ${WASTE_CLASSES[key].name} (${WASTE_CLASSES[key].fieldName})`}
-              value={CATEGORIES[WASTE_CLASS_TO_CATEGORY[key]].label}
-            />
+          (key, i) => (
+            <View key={key}>
+              {i > 0 ? <View style={styles.separator} /> : null}
+              <InfoRow
+                icon="git-compare-outline"
+                label={`${WASTE_CLASSES[key].emoji} ${WASTE_CLASSES[key].fieldName}`}
+                value={CATEGORIES[WASTE_CLASS_TO_CATEGORY[key]].label}
+              />
+            </View>
           ),
         )}
-        <View style={styles.hintBox}>
-          <Text style={styles.hintText}>
-            Có thể chỉnh ánh xạ trong src/data/wasteRules.ts mà không cần thay
-            model hay train lại.
-          </Text>
-        </View>
+        <Text style={styles.hintText}>
+          Có thể chỉnh ánh xạ trong src/data/wasteRules.ts mà không cần thay
+          model hay train lại.
+        </Text>
       </Section>
 
       <Section title="Về EcoScan">
@@ -146,30 +162,71 @@ export default function SettingsScreen() {
         </Text>
       </Section>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>EcoScan v1.0.0 · Expo + ONNX Runtime</Text>
-      </View>
+      <Text style={styles.footerText}>EcoScan v1.0.0 · iOS-style UI</Text>
     </ScrollView>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <View style={styles.section}>
+    <View style={styles.group}>
       <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
         {title}
       </Text>
-      <View style={styles.card}>{children}</View>
+      <View style={styles.groupCard}>{children}</View>
     </View>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function IconLabel({
+  icon,
+  tint,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: [number, number, number];
+  label: string;
+}) {
+  return (
+    <View style={styles.rowIconLabel}>
+      <View
+        style={[
+          styles.tinyIcon,
+          { backgroundColor: `rgba(${tint[0]},${tint[1]},${tint[2]},0.18)` },
+        ]}
+      >
+        <Ionicons name={icon} size={18} color={Colors.text} />
+      </View>
+      <Text style={styles.text}>{label}</Text>
+    </View>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.text} numberOfLines={1}>
-        {label}
-      </Text>
+      <View style={styles.rowIconLabel}>
+        <View style={styles.tinyIcon}>
+          <Ionicons name={icon} size={18} color={Colors.accent} />
+        </View>
+        <Text style={styles.text} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
       <Text style={styles.value} numberOfLines={1}>
         {value}
       </Text>
@@ -182,8 +239,8 @@ function describeRuntime(runtime: ModelRuntimeInfo | null): string {
   if (runtime.status === 'ready') {
     return `sẵn sàng · EP ${runtime.executionProvider ?? '?'} · ${runtime.inputSize ?? '?'}²`;
   }
-  if (runtime.status === 'loading') return 'Đang tải...';
-  if (runtime.status === 'unavailable') return 'Chưa khả dụng (cần Dev Build)';
+  if (runtime.status === 'loading') return 'Đang tải…';
+  if (runtime.status === 'unavailable') return 'Cần Dev Build';
   return 'Lỗi';
 }
 
@@ -197,65 +254,95 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
     gap: Spacing.xl,
   },
-  section: {
-    gap: Spacing.sm,
+  group: {
+    gap: 8,
   },
   sectionTitle: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     fontSize: Font.small,
-    fontWeight: '800',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
+    marginLeft: Spacing.sm + 4,
+    marginBottom: -4,
   },
-  card: {
+  groupCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  rowIconLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexShrink: 1,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  tinyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: 'rgba(10,132,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.separator,
+    marginLeft: 44,
   },
   text: {
-    flex: 1,
+    flexShrink: 1,
     color: Colors.text,
     fontSize: Font.body,
   },
   textMuted: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.small,
     lineHeight: 20,
-  },
-  value: {
-    color: Colors.accent,
-    fontSize: Font.small,
-    fontWeight: '700',
-    maxWidth: '52%',
-  },
-  hintBox: {
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radii.sm,
-    padding: Spacing.md,
   },
   hintText: {
     color: Colors.textMuted,
     fontSize: Font.small,
     lineHeight: 19,
+    paddingVertical: Spacing.sm,
+  },
+  value: {
+    color: Colors.accent,
+    fontSize: Font.small,
+    fontWeight: '600',
+    maxWidth: '50%',
+    textAlign: 'right',
   },
   categoryRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  emojiTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryEmoji: {
     fontSize: 22,
@@ -266,13 +353,12 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: Font.body,
-    fontWeight: '800',
-  },
-  footer: {
-    alignItems: 'center',
+    fontWeight: '700',
   },
   footerText: {
     color: Colors.textMuted,
     fontSize: Font.caption,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
   },
 });

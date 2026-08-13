@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Font, Radii, Spacing } from '@/constants/theme';
 import { CATEGORIES } from '@/data/categories';
 import { CATEGORY_ORDER_FOR_STATS } from '@/data/wasteRules';
@@ -20,13 +21,13 @@ export function DetectorSummary({ objectCount, counts }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.countEmoji} allowFontScaling={false}>
-          📊
-        </Text>
+        <View style={styles.iconWrap}>
+          <Ionicons name="cube-outline" size={22} color={Colors.accent} />
+        </View>
         <Text style={styles.title} maxFontSizeMultiplier={1.5}>
           {objectCount > 0
             ? `${objectCount} vật thể được phát hiện`
-            : 'Đang tìm vật thể...'}
+            : 'Đang tìm vật thể…'}
         </Text>
       </View>
 
@@ -37,11 +38,7 @@ export function DetectorSummary({ objectCount, counts }: Props) {
       ) : (
         <View style={styles.chips}>
           {present.map((id) => (
-            <CategoryChip
-              key={id}
-              category={CATEGORIES[id]}
-              compact
-            />
+            <CategoryChip key={id} category={CATEGORIES[id]} compact />
           ))}
         </View>
       )}
@@ -69,10 +66,10 @@ export function DetectorSummary({ objectCount, counts }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.glass,
     borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
     padding: Spacing.lg,
     gap: Spacing.sm,
   },
@@ -81,16 +78,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  countEmoji: {
-    fontSize: 20,
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(10,132,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
+    flex: 1,
     color: Colors.text,
     fontSize: Font.body,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   hint: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.small,
   },
   chips: {
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   statLabel: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.caption,
   },
 });

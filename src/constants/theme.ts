@@ -1,28 +1,36 @@
 /**
  * Global visual theme for EcoScan.
- * Dark, high-contrast palette suited for a camera-centred UI.
+ * Dark iOS (Apple) style palette — deep black, translucent surfaces,
+ * system blue accent, frosted-glass layering suited to a camera UI.
  */
 export const Colors = {
-  bg: '#0B1220',
-  bgElevated: '#111A2C',
-  surface: '#182336',
-  border: 'rgba(255,255,255,0.14)',
-  borderStrong: 'rgba(255,255,255,0.28)',
+  bg: '#000000',
+  bgElevated: '#111315',
+  surface: '#1C1C1E',
+  surfaceHigh: '#2C2C2E',
+  border: 'rgba(255,255,255,0.12)',
+  borderStrong: 'rgba(255,255,255,0.25)',
+  separator: 'rgba(255,255,255,0.08)',
 
-  text: '#F4F7FB',
-  textSecondary: '#B9C3D4',
-  textMuted: '#7E8A9D',
+  text: '#FFFFFF',
+  textSecondary: '#EBEBF5',
+  textTernary: '#98989D',
+  textMuted: '#8E8E93',
+  textQuaternary: '#48484A',
 
-  accent: '#22D3EE',
-  accentDim: 'rgba(34,211,238,0.18)',
+  // iOS system tint
+  accent: '#0A84FF',
+  accentDim: 'rgba(10,132,255,0.18)',
 
-  success: '#34D399',
-  warning: '#FBBF24',
-  danger: '#F87171',
-  info: '#60A5FA',
+  success: '#32D74B',
+  warning: '#FFD60A',
+  danger: '#FF453A',
+  info: '#64D2FF',
 
-  overlay: 'rgba(6,10,18,0.55)',
-  overlayLight: 'rgba(6,10,18,0.35)',
+  // Frosted overlays used over the live camera
+  overlay: 'rgba(0,0,0,0.5)',
+  overlayLight: 'rgba(0,0,0,0.3)',
+  glass: 'rgba(28,28,30,0.72)',
 } as const;
 
 export const Spacing = {
@@ -34,19 +42,20 @@ export const Spacing = {
 } as const;
 
 export const Radii = {
-  sm: 8,
-  md: 12,
-  lg: 20,
-  xl: 28,
+  sm: 10,
+  md: 14,
+  lg: 22,
+  xl: 32,
 } as const;
 
 /** Minimum tappable size (accessibility). */
 export const TouchTarget = 48;
 
+/** Apple uses tighter vertical rhythm; body 17 mirrors iOS default. */
 export const Font = {
-  title: 22,
-  heading: 18,
-  body: 15,
-  small: 13,
-  caption: 11,
+  title: 28,
+  heading: 20,
+  body: 17,
+  small: 15,
+  caption: 13,
 } as const;

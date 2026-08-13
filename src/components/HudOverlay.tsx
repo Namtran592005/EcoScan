@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Font, Radii } from '@/constants/theme';
 import type { ScanStatus } from '@/hooks/useScanEngine';
 
@@ -14,15 +15,17 @@ function statusText(status: ScanStatus): string {
     case 'idle':
       return 'Đưa vật thể vào khung';
     case 'analyzing':
-      return 'Đang phân tích...';
+      return 'Đang phân tích…';
     case 'confirmed':
-      return 'Đã nhận diện ✓';
+      return 'Đã nhận diện';
   }
 }
 
+const FRAME_RADIUS = 24;
+
 /**
- * Rounded-rectangle HUD placed over the scan area. The frame represents the
- * exact region that gets feed into the model (the square preview crop).
+ * iOS-style scan frame: a compact, crisp square with faint frosted-white fill
+ * and sharp white corner brackets, overlaid on the live camera.
  */
 export function HudOverlay({ side, status, uncertainHint }: Props) {
   const confirmed = status === 'confirmed';
@@ -34,23 +37,31 @@ export function HudOverlay({ side, status, uncertainHint }: Props) {
           {
             width: side,
             height: side,
-            borderColor: confirmed ? Colors.success : Colors.accent,
           },
         ]}
       >
-        {!confirmed && (
-          <>
-            <View style={styles.cornerTopLeft} />
-            <View style={styles.cornerTopRight} />
-            <View style={styles.cornerBottomLeft} />
-            <View style={styles.cornerBottomRight} />
-          </>
-        )}
+        {/* Faint frosted fill + subtle inner glow */}
+        <View style={[styles.glassFill, confirmed && styles.glassFillConfirmed]} />
+
+        <View
+          style={[styles.corner, styles.topLeft, confirmed && styles.cornerConfirmed]}
+        />
+        <View
+          style={[styles.corner, styles.topRight, confirmed && styles.cornerConfirmed]}
+        />
+        <View
+          style={[styles.corner, styles.bottomLeft, confirmed && styles.cornerConfirmed]}
+        />
+        <View
+          style={[styles.corner, styles.bottomRight, confirmed && styles.cornerConfirmed]}
+        />
       </View>
 
-      <View style={styles.statusPill}>
-        {status === 'analyzing' ? (
+      <View style={[styles.statusPill, confirmed && styles.statusPillConfirmed]}>
+        {status === 'analyzing' && !confirmed ? (
           <ActivityIndicator size="small" color={Colors.text} />
+        ) : confirmed ? (
+          <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
         ) : null}
         <Text
           style={[styles.statusText, confirmed && styles.statusTextConfirmed]}
@@ -62,8 +73,9 @@ export function HudOverlay({ side, status, uncertainHint }: Props) {
 
       {uncertainHint && (
         <View style={styles.hintPill}>
+          <Ionicons name="warning-outline" size={16} color="#1C1C1E" />
           <Text style={styles.hintText} maxFontSizeMultiplier={1.5}>
-            Không chắc chắn — hãy thử đưa vật thể gần hơn và đủ sáng hơn
+            Không chắc chắn — thử gần và sáng hơn
           </Text>
         </View>
       )}
@@ -71,7 +83,8 @@ export function HudOverlay({ side, status, uncertainHint }: Props) {
   );
 }
 
-const CORNER = 22;
+const CORNER = 30;
+const CORNER_THICK = 4;
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -84,58 +97,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   frame: {
-    borderRadius: Radii.xl,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: FRAME_RADIUS,
   },
-  cornerTopLeft: {
+  glassFill: {
     position: 'absolute',
-    top: -2,
-    left: -2,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: FRAME_RADIUS,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  glassFillConfirmed: {
+    borderColor: 'rgba(50,215,75,0.8)',
+    backgroundColor: 'rgba(50,215,75,0.08)',
+  },
+  corner: {
+    position: 'absolute',
     width: CORNER,
     height: CORNER,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderTopColor: Colors.accent,
-    borderLeftColor: Colors.accent,
-    borderTopLeftRadius: Radii.xl,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  cornerTopRight: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: CORNER,
-    height: CORNER,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderTopColor: Colors.accent,
-    borderRightColor: Colors.accent,
-    borderTopRightRadius: Radii.xl,
+  cornerConfirmed: {
+    borderColor: Colors.success,
   },
-  cornerBottomLeft: {
-    position: 'absolute',
-    bottom: -2,
-    left: -2,
-    width: CORNER,
-    height: CORNER,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderBottomColor: Colors.accent,
-    borderLeftColor: Colors.accent,
-    borderBottomLeftRadius: Radii.xl,
+  topLeft: {
+    top: -3,
+    left: -3,
+    borderTopWidth: CORNER_THICK,
+    borderLeftWidth: CORNER_THICK,
+    borderTopLeftRadius: FRAME_RADIUS,
   },
-  cornerBottomRight: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: CORNER,
-    height: CORNER,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderBottomColor: Colors.accent,
-    borderRightColor: Colors.accent,
-    borderBottomRightRadius: Radii.xl,
+  topRight: {
+    top: -3,
+    right: -3,
+    borderTopWidth: CORNER_THICK,
+    borderRightWidth: CORNER_THICK,
+    borderTopRightRadius: FRAME_RADIUS,
+  },
+  bottomLeft: {
+    bottom: -3,
+    left: -3,
+    borderBottomWidth: CORNER_THICK,
+    borderLeftWidth: CORNER_THICK,
+    borderBottomLeftRadius: FRAME_RADIUS,
+  },
+  bottomRight: {
+    bottom: -3,
+    right: -3,
+    borderBottomWidth: CORNER_THICK,
+    borderRightWidth: CORNER_THICK,
+    borderBottomRightRadius: FRAME_RADIUS,
   },
   statusPill: {
     position: 'absolute',
@@ -143,13 +157,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.overlay,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: Colors.glass,
     borderRadius: Radii.lg,
     paddingHorizontal: 16,
     paddingVertical: 10,
     maxWidth: '88%',
+  },
+  statusPillConfirmed: {
+    backgroundColor: 'rgba(28,28,30,0.9)',
   },
   statusText: {
     color: Colors.text,
@@ -161,17 +176,21 @@ const styles = StyleSheet.create({
   },
   hintPill: {
     position: 'absolute',
-    bottom: 76,
-    backgroundColor: 'rgba(251,191,36,0.92)',
+    bottom: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderRadius: Radii.lg,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginHorizontal: 16,
+    marginHorizontal: 24,
   },
   hintText: {
-    color: '#1F2937',
+    color: '#1C1C1E',
     fontSize: Font.small,
     fontWeight: '600',
     textAlign: 'center',
+    flexShrink: 1,
   },
 });

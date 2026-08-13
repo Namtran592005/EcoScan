@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Colors, Font, Radii, Spacing, TouchTarget } from '@/constants/theme';
 import type { ModelAvailability } from '@/ai/types';
 
@@ -23,7 +24,7 @@ export function ModelOverlay({ availability, onRetry, visible }: Props) {
           <>
             <ActivityIndicator size="large" color={Colors.accent} />
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-              Đang tải mô hình...
+              Đang tải mô hình…
             </Text>
             <Text style={styles.body} maxFontSizeMultiplier={1.5}>
               Mô hình nhận diện đang được nạp trên thiết bị của bạn. Vui lòng
@@ -32,11 +33,11 @@ export function ModelOverlay({ availability, onRetry, visible }: Props) {
           </>
         ) : availability.state === 'unavailable' ? (
           <>
-            <Text style={styles.emoji} allowFontScaling={false}>
-              🧪
-            </Text>
+            <View style={styles.iconWrap}>
+              <Ionicons name="flask-outline" size={34} color={Colors.warning} />
+            </View>
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-              Cần chạy bằng Development Build
+              Cần Development Build
             </Text>
             <Text style={styles.body} maxFontSizeMultiplier={1.5}>
               {availability.message}
@@ -56,9 +57,9 @@ export function ModelOverlay({ availability, onRetry, visible }: Props) {
           </>
         ) : (
           <>
-            <Text style={styles.emoji} allowFontScaling={false}>
-              ⚠️
-            </Text>
+            <View style={[styles.iconWrap, styles.iconWrapDanger]}>
+              <Ionicons name="alert-circle" size={34} color={Colors.danger} />
+            </View>
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
               Không thể tải mô hình
             </Text>
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(6,10,18,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -102,25 +103,33 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceHigh,
     borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
     padding: Spacing.xl,
     gap: Spacing.md,
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 40,
+  iconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255,214,10,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapDanger: {
+    backgroundColor: 'rgba(255,69,58,0.16)',
   },
   title: {
     color: Colors.text,
     fontSize: Font.heading,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
   body: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.body,
     lineHeight: 22,
     textAlign: 'center',
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     fontSize: Font.small,
     textAlign: 'center',
-    backgroundColor: 'rgba(248,113,113,0.12)',
+    backgroundColor: 'rgba(255,69,58,0.12)',
     borderRadius: Radii.sm,
     padding: Spacing.sm,
     width: '100%',
@@ -143,11 +152,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
   buttonLabel: {
-    color: '#062A33',
+    color: '#FFFFFF',
     fontSize: Font.body,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

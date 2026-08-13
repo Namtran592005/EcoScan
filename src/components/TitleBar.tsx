@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Font, Spacing, TouchTarget } from '@/constants/theme';
 import { ModeToggle } from './ModeToggle';
 import type { ScanMode } from '@/hooks/useScanEngine';
@@ -36,9 +37,7 @@ export function TitleBar({ mode, onModeChange, onOpenSettings, modeDisabled }: P
           ]}
           hitSlop={8}
         >
-          <Text style={styles.settingsIcon} allowFontScaling={false}>
-            ⚙️
-          </Text>
+          <Ionicons name="settings-outline" size={22} color={Colors.accent} />
         </Pressable>
       </View>
       <ModeToggle value={mode} onChange={onModeChange} disabled={modeDisabled} />
@@ -64,11 +63,11 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontSize: Font.title,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   subtitle: {
-    color: Colors.textSecondary,
+    color: Colors.textTernary,
     fontSize: Font.small,
     marginTop: 2,
   },
@@ -76,16 +75,11 @@ const styles = StyleSheet.create({
     width: TouchTarget,
     height: TouchTarget,
     borderRadius: TouchTarget / 2,
-    backgroundColor: Colors.bgElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingsPressed: {
     opacity: 0.6,
-  },
-  settingsIcon: {
-    fontSize: 20,
   },
 });
