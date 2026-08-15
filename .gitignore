@@ -47,3 +47,4 @@ example
 
 # source ONNX models (duplicate of assets/models) — exclude from git/EAS upload
 /model/
+assets/models/*.onnx
