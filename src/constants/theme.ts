@@ -4,11 +4,11 @@
  * system blue accent, frosted-glass layering suited to a camera UI.
  */
 export const Colors = {
-  // Deep green-black matching the app icon background (#04110a)
-  bg: '#04110a',
-  bgElevated: '#0a1d14',
-  surface: '#122a1d',
-  surfaceHigh: '#1d3a2b',
+  // Default iOS dark palette — pure black base
+  bg: '#000000',
+  bgElevated: '#111315',
+  surface: '#1C1C1E',
+  surfaceHigh: '#2C2C2E',
   border: 'rgba(255,255,255,0.12)',
   borderStrong: 'rgba(255,255,255,0.25)',
   separator: 'rgba(255,255,255,0.08)',
@@ -29,9 +29,9 @@ export const Colors = {
   info: '#64D2FF',
 
   // Frosted overlays used over the live camera
-  overlay: 'rgba(4,17,10,0.5)',
-  overlayLight: 'rgba(4,17,10,0.3)',
-  glass: 'rgba(18,42,29,0.72)',
+  overlay: 'rgba(0,0,0,0.5)',
+  overlayLight: 'rgba(0,0,0,0.3)',
+  glass: 'rgba(28,28,30,0.72)',
 } as const;
 
 export const Spacing = {

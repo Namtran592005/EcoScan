@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     maxWidth: '88%',
   },
   statusPillConfirmed: {
-    backgroundColor: 'rgba(18,42,29,0.9)',
+    backgroundColor: 'rgba(28,28,30,0.9)',
   },
   statusText: {
     color: Colors.text,

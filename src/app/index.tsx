@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     margin: Spacing.sm,
     borderRadius: Radii.lg,
     overflow: 'hidden',
-    backgroundColor: '#04110a',
+    backgroundColor: '#000000',
   },
   bottomBar: {
     paddingHorizontal: Spacing.lg,
