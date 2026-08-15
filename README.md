@@ -2,11 +2,30 @@
 
 Ứng dụng di động giúp **nhận diện và phân loại chất thải** ngay trên điện thoại, không cần internet, không tải ảnh lên thiết bị khác. Toàn bộ quá trình nhận diện diễn ra cục bộ trên máy của bạn.
 
+| Đang phân tích | Kết quả nhận diện |
+|:---:|:---:|
+| <img src="screenshots/scan.jpg" alt="Màn hình quét" width="220"> | <img src="screenshots/result.jpg" alt="Kết quả nhận diện" width="220"> |
+
+## App nhận diện được gì?
+
+Model AI tích hợp sẵn trong app nhận diện được **10 loại chất thải**:
+
+| Nhóm | Loại |
+|:---|:---|
+| Tái chế | Giấy, bìa cứng, nhựa, kim loại, thủy tinh |
+| Thực phẩm | Chất thải hữu cơ (thức ăn thừa, vỏ trái cây...) |
+| Nguy hại | Pin |
+| Khác | Quần áo, giày dép, chất thải thông thường |
+
+Mỗi kết quả hiển thị **phần trăm độ tin cậy của model** (ví dụ "Pin — 56%"), cho biết mức độ chắc chắn của nhận diện.
+
+> **Lưu ý quan trọng:** Kết quả do model AI dự đoán nên **không hoàn toàn chính xác 100%**. Hãy xem phần trăm tin cậy kèm theo: số càng cao thì khả năng nhận diện đúng càng lớn. Với vật thể mới lạ hoặc điều kiện ánh sáng kém, model có thể nhận diện sai — khi đó hãy đưa vật thể vào khung gần hơn, đủ sáng và quét lại.
+
 ## Tính năng
 
 - Đưa vật thể vào khung camera → app tự nhận diện loại chất thải và gợi ý cách xử lý
-- Phân loại thành 4 nhóm: **tái chế**, **thực phẩm**, **chất thải nguy hại**, **chất thải khác**
 - Kết quả hiển thị bằng tiếng Việt với hướng dẫn ngắn gọn cho từng loại
+- Kết quả được xếp vào 4 nhóm: **tái chế**, **thực phẩm**, **chất thải nguy hại**, **chất thải khác**, kèm cảnh báo riêng cho vật nguy hại
 - Camera tự đứng yên sau khi quét xong, bấm **Quét lại** để tiếp tục
 - Không cần đăng nhập, không thu thập dữ liệu cá nhân
 
@@ -14,7 +33,7 @@
 
 1. Mở app và cấp quyền truy cập camera
 2. Đặt vật thể vào khung vuông giữa màn hình, giữ yên trong vài giây
-3. Xem kết quả và gợi ý phân loại
+3. Xem kết quả, phần trăm tin cậy và gợi ý phân loại
 4. Bấm **Quét lại** để nhận diện vật khác
 
 > Nếu app hiển thị "Chưa chắc chắn", hãy đưa vật thể gần hơn và ở nơi đủ sáng.
