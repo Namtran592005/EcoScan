@@ -7,7 +7,6 @@ import { categoryForClass } from '@/data/wasteRules';
 import { captureSquareBase64, decodeJpegBase64ToRgba } from '@/services/imageToTensor';
 import { perf } from '@/utils/perf';
 
-export type ScanMode = 'single' | 'multi';
 export type ScanStatus = 'idle' | 'analyzing' | 'confirmed';
 
 export interface CategoryCounts {
@@ -27,7 +26,6 @@ const EMPTY_COUNTS: CategoryCounts = {
 const MAX_CONSECUTIVE_ERRORS = 5;
 interface EngineInputs {
   cameraRef: { current: CameraView | null };
-  mode: ScanMode;
   /** true when the loop should run (focused, permission granted, model ready). */
   active: boolean;
   classifier: WasteClassifier | null;
@@ -36,7 +34,6 @@ interface EngineInputs {
 
 export function useScanEngine({
   cameraRef,
-  mode,
   active,
   classifier,
   detector,
@@ -80,70 +77,58 @@ export function useScanEngine({
           continue;
         }
 
-        // Capture at the largest active model input size (in single mode the
-        // detector also runs on the same frame for the tracking box).
+        // Capture at the model input size; the detector also runs on the same
+        // frame to draw a thin realtime tracking box around the object.
         const classifierInput = classifier?.runtime.inputSize;
         const detectorInput = detector?.runtime.inputSize;
         const captureSize =
           Math.max(classifierInput ?? 0, detectorInput ?? 0) || 640;
         const t0 = Date.now();
         try {
-          // Crop to the HUD square in single mode; full camera square in multi
-          // mode — must match the on-screen rect passed to the overlays.
+          // Crop to the on-screen HUD square — must match the rect passed to
+          // the overlays so boxes align with the analyzed region.
           const base64 = await captureSquareBase64(
             cam,
             captureSize,
-            mode === 'single' ? HUD_CROP_FRACTION : 1,
+            HUD_CROP_FRACTION,
           );
           const rgba = decodeJpegBase64ToRgba(base64);
 
-          if (mode === 'single') {
-            if (!classifier) continue;
+          if (!classifier) continue;
 
-            const result = await classifier.classify(rgba);
+          const result = await classifier.classify(rgba);
 
-            // Realtime box: reuse the detector on the same frame so the object
-            // gets a thin tracking frame while scanning and a tight box on
-            // confirm (instead of the static green square).
-            let boxes: DetectionBox[] = [];
-            if (detector) {
-              const raw = await detector.detect(rgba);
-              boxes = stabilizer.track(raw);
-            }
+          // Realtime box: reuse the detector on the same frame so the object
+          // gets a thin tracking frame while scanning and a tight box on
+          // confirm (instead of the static green square).
+          let boxes: DetectionBox[] = [];
+          if (detector) {
+            const raw = await detector.detect(rgba);
+            boxes = stabilizer.track(raw);
+          }
 
-            smoother.push(result.className, result.confidence);
-            perf.recordCycle(Date.now() - t0);
-            errors = 0;
+          smoother.push(result.className, result.confidence);
+          perf.recordCycle(Date.now() - t0);
+          errors = 0;
 
-            setDetections((prev) => (sameBoxes(prev, boxes) ? prev : boxes));
-            const stats = computeCounts(boxes);
-            setCounts(stats.counts);
-            setObjectCount(stats.objectCount);
+          setDetections((prev) => (sameBoxes(prev, boxes) ? prev : boxes));
+          const stats = computeCounts(boxes);
+          setCounts(stats.counts);
+          setObjectCount(stats.objectCount);
 
-            const confirmed = smoother.confirmedResult;
-            if (confirmed) {
-              setClassification(confirmed);
-              setStatus('confirmed');
-              cancelled = true; // freeze inference to save CPU/battery
-              break;
-            }
-            const frames = smoother.analysedFrames;
-            setStatus(frames > 0 ? 'analyzing' : 'idle');
-            if (frames > 0 && frames % CLASSIFY_UNCERTAIN_AFTER_FRAMES === 0) {
-              setUncertainHint(true);
-              if (hintTimer.current) clearTimeout(hintTimer.current);
-              hintTimer.current = setTimeout(() => setUncertainHint(false), 1800);
-            }
-          } else {
-            if (!detector) continue;
-            const rawBoxes = await detector.detect(rgba);
-            const stable = stabilizer.track(rawBoxes);
-            perf.recordCycle(Date.now() - t0);
-            errors = 0;
-            setDetections((prev) => (sameBoxes(prev, stable) ? prev : stable));
-            const stats = computeCounts(stable);
-            setCounts(stats.counts);
-            setObjectCount(stats.objectCount);
+          const confirmed = smoother.confirmedResult;
+          if (confirmed) {
+            setClassification(confirmed);
+            setStatus('confirmed');
+            cancelled = true; // freeze inference to save CPU/battery
+            break;
+          }
+          const frames = smoother.analysedFrames;
+          setStatus(frames > 0 ? 'analyzing' : 'idle');
+          if (frames > 0 && frames % CLASSIFY_UNCERTAIN_AFTER_FRAMES === 0) {
+            setUncertainHint(true);
+            if (hintTimer.current) clearTimeout(hintTimer.current);
+            hintTimer.current = setTimeout(() => setUncertainHint(false), 1800);
           }
         } catch (err) {
           errors++;
@@ -165,7 +150,7 @@ export function useScanEngine({
     return () => {
       cancelled = true;
     };
-  }, [active, mode, classifier, detector, scanKey, cameraRef]);
+  }, [active, classifier, detector, scanKey, cameraRef]);
 
   useEffect(() => {
     return () => {

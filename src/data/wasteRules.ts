@@ -51,7 +51,7 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
     name: 'Pin',
     fieldName: 'Battery',
     emoji: '🔋',
-    tip: 'Có thể gây cháy nổ nếu hỏng — không bỏ cùng rác thường.',
+    tip: 'Có thể gây cháy nổ nếu hỏng — không bỏ cùng chất thải thường.',
     category: 'hazardous',
   },
   biological: {
@@ -72,7 +72,7 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
     name: 'Quần áo cũ',
     fieldName: 'Clothes',
     emoji: '👕',
-    tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng rác phù hợp.',
+        tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng phù hợp.',
     category: 'recyclable',
   },
   glass: {
@@ -107,21 +107,21 @@ export const WASTE_CLASSES: Record<WasteClassId, WasteClassInfo> = {
     name: 'Giày dép',
     fieldName: 'Shoes',
     emoji: '👟',
-    tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng rác phù hợp.',
+    tip: 'Còn dùng được có thể quyên góp; nếu không, bỏ vào thùng phù hợp.',
     category: 'recyclable',
   },
   trash: {
-    name: 'Rác khác',
+    name: 'Chất thải khác',
     fieldName: 'Trash',
     emoji: '🗑️',
-    tip: 'Kiểm tra lại — nếu không chắc, hãy bỏ vào rác sinh hoạt.',
+    tip: 'Kiểm tra lại — nếu không chắc, hãy bỏ vào thùng chất thải phù hợp.',
     category: 'other',
   },
 };
 
 /**
  * Order of the bundled 10-class classifier (assets/models/phanloai.onnx),
- * matching the training folder order: index 0 = battery … 9 = trash.
+ * matching the model's class order: index 0 = battery … 9 = trash.
  * The adapter returns generic keys `class_0..class_9`; this array maps them
  * onto named waste classes so the UI shows real labels.
  */

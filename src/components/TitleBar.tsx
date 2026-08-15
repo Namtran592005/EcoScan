@@ -1,30 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Font, Spacing, TouchTarget } from '@/constants/theme';
-import { ModeToggle } from './ModeToggle';
-import type { ScanMode } from '@/hooks/useScanEngine';
 
 interface Props {
-  mode: ScanMode;
-  onModeChange: (mode: ScanMode) => void;
   onOpenSettings: () => void;
-  modeDisabled?: boolean;
 }
 
-export function TitleBar({ mode, onModeChange, onOpenSettings, modeDisabled }: Props) {
+export function TitleBar({ onOpenSettings }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.brand}>
           <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-            EcoScan
+            <Text style={styles.titleEco}>Eco</Text>
+            <Text>Scan</Text>
           </Text>
           <Text
             style={styles.subtitle}
             maxFontSizeMultiplier={1.4}
             numberOfLines={1}
           >
-            Nhận diện rác ngay trên thiết bị
+            Phân loại chất thải ngay trên thiết bị
           </Text>
         </View>
         <Pressable
@@ -40,7 +36,6 @@ export function TitleBar({ mode, onModeChange, onOpenSettings, modeDisabled }: P
           <Ionicons name="settings-outline" size={22} color={Colors.accent} />
         </Pressable>
       </View>
-      <ModeToggle value={mode} onChange={onModeChange} disabled={modeDisabled} />
     </View>
   );
 }
@@ -65,6 +60,9 @@ const styles = StyleSheet.create({
     fontSize: Font.title,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  titleEco: {
+    color: Colors.success,
   },
   subtitle: {
     color: Colors.textTernary,

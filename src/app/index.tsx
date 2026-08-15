@@ -11,19 +11,16 @@ import { TitleBar } from '@/components/TitleBar';
 import { HudOverlay } from '@/components/HudOverlay';
 import { DetectionOverlay } from '@/components/DetectionOverlay';
 import { ResultCard, ScanHint } from '@/components/ResultCard';
-import { DetectorSummary } from '@/components/DetectorSummary';
 import { DebugOverlay } from '@/components/DebugOverlay';
 import { PermissionScreen } from '@/components/PermissionScreen';
 import { ModelOverlay } from '@/components/ModelOverlay';
-import { useScanEngine, type ScanMode } from '@/hooks/useScanEngine';
+import { useScanEngine } from '@/hooks/useScanEngine';
 import { useModelAvailability } from '@/hooks/useModelAvailability';
 import {
   classifierAvailability,
-  detectorAvailability,
   getClassifier,
   getDetector,
   resetClassifier,
-  resetDetector,
 } from '@/ai/modelManager';
 import { useModelStoreVersion } from '@/services/modelStore';
 import { HUD_CROP_FRACTION } from '@/data/thresholds';
@@ -66,7 +63,6 @@ export default function ScanScreen() {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  const [mode, setMode] = useState<ScanMode>('single');
   const [isFocused, setIsFocused] = useState(false);
 
   useFocusEffect(
@@ -80,20 +76,17 @@ export default function ScanScreen() {
 
   const { availability: classifyAvailability, retry: retryClassifier } =
     useModelAvailability(classifierAvailability, resetClassifier, modelStoreVersion);
-  const { availability: detectAvailability, retry: retryDetector } =
-    useModelAvailability(detectorAvailability, resetDetector, modelStoreVersion);
 
   const [classifier, setClassifier] = useState<WasteClassifier | null>(null);
   const [detector, setDetector] = useState<WasteDetector | null>(null);
 
-  // When the model store changes (import/remove/reassign in Settings), drop
-  // the cached adapter instances so they are re-created from the new config.
+  // When the model store changes, drop the cached adapter instances so they
+  // are re-created from the new configuration.
   const prevStoreVersion = useRef(modelStoreVersion);
   useEffect(() => {
     if (prevStoreVersion.current !== modelStoreVersion) {
       prevStoreVersion.current = modelStoreVersion;
       resetClassifier();
-      resetDetector();
       setClassifier(null);
       setDetector(null);
     }
@@ -108,29 +101,28 @@ export default function ScanScreen() {
         })
         .catch(() => resetClassifier());
     }
-    if (detectAvailability.state === 'ready' && !detector) {
+    // The detector still loads so a thin realtime tracking box can wrap the
+    // object while scanning.
+    if (classifyAvailability.state === 'ready' && !detector) {
       getDetector()
         .then((instance) => {
           if (!cancelled) setDetector(instance);
         })
-        .catch(() => resetDetector());
+        .catch(() => undefined);
     }
     return () => {
       cancelled = true;
     };
-  }, [classifyAvailability.state, detectAvailability.state, classifier, detector]);
+  }, [classifyAvailability.state, classifier, detector]);
 
   const permissionGranted = permission?.granted === true;
   const showPermissionScreen = permission && !permission.granted;
 
-  const currentAvailability =
-    mode === 'single' ? classifyAvailability : detectAvailability;
-  const currentReady = currentAvailability.state === 'ready';
+  const currentReady = classifyAvailability.state === 'ready';
 
   const engineActive = isFocused && permissionGranted && currentReady;
   const engine = useScanEngine({
     cameraRef,
-    mode,
     active: engineActive,
     classifier,
     detector,
@@ -148,13 +140,11 @@ export default function ScanScreen() {
     });
   };
   const cameraRect = fitAspect(zoneSize, 4 / 3);
-  // Single-object mode analyzes the HUD square (62% of the camera rect);
-  // multi-object mode analyzes the full camera square so objects anywhere in
-  // the frame are detected.
+  // The engine analyzes the HUD square (62% of the camera rect) centered on
+  // the preview, so the visible square must match what the model sees.
   const side = Math.max(
     0,
-    Math.min(cameraRect.width, cameraRect.height) *
-      (mode === 'single' ? HUD_CROP_FRACTION : 1),
+    Math.min(cameraRect.width, cameraRect.height) * HUD_CROP_FRACTION,
   );
   const previewRect = {
     x: cameraRect.x + (cameraRect.width - side) / 2,
@@ -168,12 +158,7 @@ export default function ScanScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.topBar}>
-        <TitleBar
-          mode={mode}
-          onModeChange={setMode}
-          onOpenSettings={openSettings}
-          modeDisabled={!!showPermissionScreen}
-        />
+        <TitleBar onOpenSettings={openSettings} />
       </SafeAreaView>
 
       <View style={styles.zone} onLayout={onZoneLayout}>
@@ -184,7 +169,7 @@ export default function ScanScreen() {
             facing="back"
             autofocus="on"
             mirror={false}
-            active
+            active={engine.status !== 'confirmed'}
             animateShutter={false}
             ratio="4:3"
             pictureSize={pictureSize}
@@ -193,48 +178,39 @@ export default function ScanScreen() {
         ) : null}
 
         {permissionGranted && side > 0 ? (
-          mode === 'single' ? (
-            <>
-              {engine.status === 'confirmed' ? (
-                // Tight green box wrapping the object replaces the static
-                // square once the object is identified.
-                <DetectionOverlay
-                  rect={previewRect}
-                  boxes={engine.detections}
-                  confirmed
-                  confirmedLabel={
-                    engine.classification
-                      ? classInfoFor(engine.classification.className)?.fieldName ??
-                        engine.classification.className
-                      : undefined
-                  }
-                />
-              ) : (
-                <>
-                  <DetectionOverlay rect={previewRect} boxes={engine.detections} />
-                  <HudOverlay
-                    side={side}
-                    status={engine.status}
-                    uncertainHint={engine.uncertainHint}
-                  />
-                </>
-              )}
-            </>
+          engine.status === 'confirmed' ? (
+            // Tight green box wrapping the object replaces the static
+            // square once the object is identified.
+            <DetectionOverlay
+              rect={previewRect}
+              boxes={engine.detections}
+              confirmed
+              confirmedLabel={
+                engine.classification
+                  ? classInfoFor(engine.classification.className)?.fieldName ??
+                    engine.classification.className
+                  : undefined
+              }
+            />
           ) : (
-            <DetectionOverlay rect={previewRect} boxes={engine.detections} />
+            <>
+              <DetectionOverlay rect={previewRect} boxes={engine.detections} />
+              <HudOverlay
+                side={side}
+                status={engine.status}
+                uncertainHint={engine.uncertainHint}
+              />
+            </>
           )
         ) : null}
 
         <DebugOverlay
-          mode={mode}
           classifierRuntime={classifier?.runtime ?? null}
-          detectorRuntime={detector?.runtime ?? null}
         />
 
         <ModelOverlay
-          availability={currentAvailability}
-          onRetry={mode === 'single' ? retryClassifier : retryDetector}
-          onAddModel={openSettings}
+          availability={classifyAvailability}
+          onRetry={retryClassifier}
           visible={permissionGranted && !currentReady}
         />
 
@@ -242,17 +218,10 @@ export default function ScanScreen() {
       </View>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
-        {mode === 'single' ? (
-          engine.status === 'confirmed' && engine.classification ? (
-            <ResultCard result={engine.classification} onReset={engine.reset} />
-          ) : (
-            <ScanHint />
-          )
+        {engine.status === 'confirmed' && engine.classification ? (
+          <ResultCard result={engine.classification} onReset={engine.reset} />
         ) : (
-          <DetectorSummary
-            objectCount={engine.objectCount}
-            counts={engine.counts}
-          />
+          <ScanHint />
         )}
       </SafeAreaView>
 
@@ -351,7 +320,7 @@ const styles = StyleSheet.create({
     margin: Spacing.sm,
     borderRadius: Radii.lg,
     overflow: 'hidden',
-    backgroundColor: '#05080F',
+    backgroundColor: '#04110a',
   },
   bottomBar: {
     paddingHorizontal: Spacing.lg,

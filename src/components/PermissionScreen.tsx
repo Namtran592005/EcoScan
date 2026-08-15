@@ -23,8 +23,8 @@ export function PermissionScreen({ canAskAgain, onRequest }: Props) {
           Cần quyền camera
         </Text>
         <Text style={styles.body} maxFontSizeMultiplier={1.5}>
-          EcoScan nhận diện rác trực tiếp ngay trên thiết bị của bạn. Ảnh camera
-          không được tải lên bất kỳ đâu.
+          EcoScan giúp phân loại chất thải trực tiếp trên thiết bị của bạn. Ảnh
+          camera không được tải lên bất kỳ đâu.
         </Text>
         {canAskAgain ? (
           <Pressable

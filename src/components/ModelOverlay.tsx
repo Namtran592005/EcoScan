@@ -6,8 +6,6 @@ import type { ModelAvailability } from '@/ai/types';
 interface Props {
   availability: ModelAvailability;
   onRetry: () => void;
-  /** Called when the user wants to add a model (navigates to Settings). */
-  onAddModel?: () => void;
   /** Show this overlay only for loading/error/unavailable/missing (not 'ready'). */
   visible: boolean;
 }
@@ -16,21 +14,17 @@ interface Props {
  * Centered overlay covering the scan area while a model loads, or explaining
  * why inference cannot run (error/unavailable/missing). Never fakes AI results.
  */
-export function ModelOverlay({ availability, onRetry, onAddModel, visible }: Props) {
+export function ModelOverlay({ availability, onRetry, visible }: Props) {
   if (!visible) return null;
 
   return (
     <View style={styles.overlay}>
       <View style={styles.card}>
-        {availability.state === 'loading' || availability.state === 'not-loaded' ? (
+                {availability.state === 'loading' || availability.state === 'not-loaded' ? (
           <>
             <ActivityIndicator size="large" color={Colors.accent} />
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
               Đang tải mô hình…
-            </Text>
-            <Text style={styles.body} maxFontSizeMultiplier={1.5}>
-              Mô hình nhận diện đang được nạp trên thiết bị của bạn. Vui lòng
-              chờ trong giây lát.
             </Text>
           </>
         ) : availability.state === 'missing' ? (
@@ -39,25 +33,11 @@ export function ModelOverlay({ availability, onRetry, onAddModel, visible }: Pro
               <Ionicons name="cube-outline" size={34} color={Colors.warning} />
             </View>
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-              Chưa có mô hình
+              Chưa sẵn sàng
             </Text>
             <Text style={styles.body} maxFontSizeMultiplier={1.5}>
-              Chế độ này cần một mô hình ONNX. Hãy thêm file mô hình của bạn
-              trong Cài đặt để bắt đầu nhận diện.
+              Công cụ nhận diện chưa sẵn sàng. Vui lòng thử lại sau giây lát.
             </Text>
-            {onAddModel ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Mở Cài đặt để thêm mô hình"
-                onPress={onAddModel}
-                style={({ pressed }) => [
-                  styles.button,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.buttonLabel}>Thêm mô hình</Text>
-              </Pressable>
-            ) : null}
           </>
         ) : availability.state === 'unavailable' ? (
           <>
@@ -65,14 +45,14 @@ export function ModelOverlay({ availability, onRetry, onAddModel, visible }: Pro
               <Ionicons name="flask-outline" size={34} color={Colors.warning} />
             </View>
             <Text style={styles.title} maxFontSizeMultiplier={1.3}>
-              Cần Development Build
+              Cần bản cài đặt đầy đủ
             </Text>
             <Text style={styles.body} maxFontSizeMultiplier={1.5}>
               {availability.message}
             </Text>
             <Text style={styles.body} maxFontSizeMultiplier={1.5}>
-              ONNX Runtime là module native — ứng dụng này không chạy trong Expo
-              Go. Hãy chạy “npm run android” (chi tiết trong README).
+              Phần nhận diện cần bản ứng dụng được cài đặt hoàn chỉnh. Vui lòng
+              liên hệ người phát hành để được hỗ trợ.
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -119,7 +99,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(4,17,10,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,

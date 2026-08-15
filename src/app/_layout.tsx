@@ -18,7 +18,7 @@ export default function RootLayout() {
           options={{
             presentation: 'modal',
             headerShown: true,
-            title: 'Cài đặt & thông tin',
+            title: 'Hướng dẫn & thông tin',
             headerStyle: { backgroundColor: Colors.bg },
             headerTintColor: Colors.text,
             headerTitleStyle: { color: Colors.text },

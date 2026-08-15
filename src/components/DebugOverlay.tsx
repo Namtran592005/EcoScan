@@ -4,26 +4,22 @@ import { usePerfStats } from '@/hooks/usePerfStats';
 import { useDebugEnabled } from '@/utils/appSettings';
 import { CLASSIFY_CONFIDENCE_THRESHOLD } from '@/data/thresholds';
 import type { ModelRuntimeInfo } from '@/ai/types';
-import type { ScanMode } from '@/hooks/useScanEngine';
 
 interface Props {
-  mode: ScanMode;
   classifierRuntime: ModelRuntimeInfo | null;
-  detectorRuntime: ModelRuntimeInfo | null;
 }
 
 /** Live debug overlay — only rendered when "debug" is enabled in Settings. */
-export function DebugOverlay({ mode, classifierRuntime, detectorRuntime }: Props) {
+export function DebugOverlay({ classifierRuntime }: Props) {
   const enabled = useDebugEnabled();
   const perf = usePerfStats();
 
   if (!enabled) return null;
 
-  const active = mode === 'single' ? classifierRuntime : detectorRuntime;
+  const active = classifierRuntime;
 
   return (
     <View style={styles.panel} pointerEvents="none" accessibilityElementsHidden>
-      <Row label="Chế độ" value={mode === 'single' ? 'Một vật' : 'Nhiều vật'} />
       <Row label="Preview" value={`${perf.previewFps.toFixed(1)} fps`} />
       <Row label="Inference" value={`${perf.inferenceFps.toFixed(1)} fps`} />
       <Row label="Cycle" value={`${perf.avgCycleLatencyMs} ms (avg)`} />

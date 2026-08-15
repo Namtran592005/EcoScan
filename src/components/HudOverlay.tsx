@@ -73,9 +73,8 @@ export function HudOverlay({ side, status, uncertainHint }: Props) {
 
       {uncertainHint && (
         <View style={styles.hintPill}>
-          <Ionicons name="warning-outline" size={16} color="#1C1C1E" />
-          <Text style={styles.hintText} maxFontSizeMultiplier={1.5}>
-            Không chắc chắn — thử gần và sáng hơn
+          <Text style={styles.hintText} maxFontSizeMultiplier={1.5} numberOfLines={1}>
+            Chưa rõ — đưa gần hơn, đủ sáng hơn
           </Text>
         </View>
       )}
@@ -164,7 +163,7 @@ const styles = StyleSheet.create({
     maxWidth: '88%',
   },
   statusPillConfirmed: {
-    backgroundColor: 'rgba(28,28,30,0.9)',
+    backgroundColor: 'rgba(18,42,29,0.9)',
   },
   statusText: {
     color: Colors.text,
@@ -188,7 +187,7 @@ const styles = StyleSheet.create({
   },
   hintText: {
     color: '#1C1C1E',
-    fontSize: Font.small,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     flexShrink: 1,

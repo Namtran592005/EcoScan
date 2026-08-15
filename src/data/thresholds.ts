@@ -12,7 +12,7 @@
 export const HUD_CROP_FRACTION = 0.62;
 
 /** Minimum confidence (0..1) for a classification frame to count as a vote. */
-export const CLASSIFY_CONFIDENCE_THRESHOLD = 0.55;
+export const CLASSIFY_CONFIDENCE_THRESHOLD = 0.40;
 
 /**
  * Temporal smoothing window (number of analysed frames). A class is only

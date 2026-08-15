@@ -101,7 +101,7 @@ export function ScanHint() {
         <Ionicons name="scan-outline" size={24} color={Colors.accent} />
       </View>
       <Text style={styles.hintText} maxFontSizeMultiplier={1.5}>
-        Đưa một món rác vào khung giữa và giữ yên vài giây để phân tích.
+        Đưa một vật dụng vào khung giữa và giữ yên vài giây để phân tích.
       </Text>
     </View>
   );
