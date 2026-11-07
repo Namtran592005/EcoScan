@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/images/icon.png" alt="EcoScan logo" width="96">
+<img src="assets/images/favicon.png" alt="EcoScan logo" width="96">
 
 # EcoScan
 
